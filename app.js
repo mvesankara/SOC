@@ -46,7 +46,9 @@ const mockData = {
 // Variables globales
 let currentPage = 'dashboard';
 let charts = {};
-let filteredIncidents = [...mockData.incidents];
+// Remove filteredIncidents and direct use of mockData.incidents for the main list
+// let filteredIncidents = [...mockData.incidents];
+let allIncidentsData = []; // To store incidents fetched from API for client-side filtering
 
 // Initialisation de l'application
 document.addEventListener('DOMContentLoaded', function() {
@@ -220,14 +222,47 @@ function loadPageData(pageName) {
   }
 }
 
-function loadIncidentsList(useFiltered = false) {
+async function loadIncidentsList(incidentsToDisplay = null) {
   const container = document.getElementById('incidents-list');
   if (!container) return;
   
-  container.innerHTML = '';
+  container.innerHTML = '<div class="loading-message">Chargement des incidents...</div>'; // Show loading message
+
+  let incidentsToShow;
+
+  if (incidentsToDisplay) {
+    incidentsToShow = incidentsToDisplay;
+  } else {
+    try {
+      // Fetch initial data from the backend API
+      // Assuming default pagination (skip=0, limit=100) is acceptable for now
+      // For more robust pagination, pass skip/limit from UI state
+      const response = await fetch('/api/v1/incidents/?limit=100'); // Fetch up to 100 incidents
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      const data = await response.json(); // This should be schemas.IncidentList
+      allIncidentsData = data.items; // Store for client-side filtering
+      incidentsToShow = allIncidentsData;
+
+      if (data.items.length === 0) {
+        container.innerHTML = '<div class="empty-message">Aucun incident à afficher.</div>';
+        return;
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des incidents:", error);
+      container.innerHTML = `<div class="error-message">Impossible de charger les incidents: ${error.message}. Assurez-vous que le backend est en cours d'exécution.</div>`;
+      return;
+    }
+  }
   
-  const incidentsToShow = useFiltered ? filteredIncidents : mockData.incidents;
-  
+  container.innerHTML = ''; // Clear loading/error message if data is fetched
+
+  if (!incidentsToShow || incidentsToShow.length === 0) {
+    container.innerHTML = '<div class="empty-message">Aucun incident à afficher (après filtrage ou chargement).</div>';
+    return;
+  }
+
   incidentsToShow.forEach(incident => {
     const incidentDiv = document.createElement('div');
     incidentDiv.className = 'incident-row';
@@ -650,17 +685,20 @@ function filterIncidents() {
   const statusValue = statusFilter.value;
   const criticiteValue = criticiteFilter.value;
   
-  filteredIncidents = mockData.incidents.filter(incident => {
+  // Filter the allIncidentsData array fetched from the API
+  const locallyFilteredIncidents = allIncidentsData.filter(incident => {
     let statusMatch = true;
     let criticiteMatch = true;
     
     if (statusValue && statusValue !== 'all') {
-      const incidentStatus = incident.statut.toLowerCase().replace(' ', '-');
+      // Ensure incident.statut is defined and handle potential case differences
+      const incidentStatus = incident.statut ? incident.statut.toLowerCase().replace(' ', '-') : '';
       statusMatch = incidentStatus === statusValue;
     }
     
     if (criticiteValue && criticiteValue !== 'all') {
-      const incidentCriticite = incident.criticite.toLowerCase().replace('é', 'e');
+      // Ensure incident.criticite is defined and handle potential case/accent differences
+      const incidentCriticite = incident.criticite ? incident.criticite.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : ''; // Handles accents like 'é' -> 'e'
       criticiteMatch = incidentCriticite === criticiteValue;
     }
     
@@ -668,7 +706,8 @@ function filterIncidents() {
   });
   
   // Recharger la liste avec les incidents filtrés
-  loadIncidentsList(true);
+  // loadIncidentsList will now take the array of incidents to display
+  loadIncidentsList(locallyFilteredIncidents);
 }
 
 // Mises à jour en temps réel
