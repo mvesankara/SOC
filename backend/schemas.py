@@ -38,3 +38,29 @@ class IncidentList(BaseModel):
     # Add skip, limit if you want to return them in the response
     # skip: int
     # limit: int
+
+# --- User Schemas ---
+
+class UserBase(BaseModel):
+    username: str
+    email: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str # Plain password, will be hashed before saving
+
+class UserUpdate(BaseModel): # For updating user info, not password here
+    email: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_superuser: Optional[bool] = None
+
+class UserRead(UserBase):
+    id: int
+    is_active: bool
+    is_superuser: bool
+
+    model_config = ConfigDict(from_attributes=True) # For ORM mode
+
+# Schema for changing password
+class UserPasswordChange(BaseModel):
+    old_password: str
+    new_password: str
