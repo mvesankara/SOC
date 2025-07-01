@@ -46,9 +46,22 @@ const mockData = {
 // Variables globales
 let currentPage = 'dashboard';
 let charts = {};
-// Remove filteredIncidents and direct use of mockData.incidents for the main list
-// let filteredIncidents = [...mockData.incidents];
 let allIncidentsData = []; // To store incidents fetched from API for client-side filtering
+
+// Enums for form dropdowns (mirroring backend)
+const CriticiteLevel = {
+  CRITIQUE: "Critique",
+  ELEVE: "Élevé",
+  MOYEN: "Moyen",
+  BAS: "Bas"
+};
+
+const StatutIncident = {
+  OUVERT: "Ouvert",
+  EN_COURS: "En cours",
+  RESOLU: "Résolu",
+  FERME: "Fermé"
+};
 
 // Initialisation de l'application
 document.addEventListener('DOMContentLoaded', function() {
@@ -71,9 +84,140 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Mettre à jour l'heure
   updateLastUpdateTime();
+
+  // Initialiser les interactions du modal
+  initNewIncidentModal();
 });
 
-// Navigation
+// --- Modal Functions ---
+const newIncidentModal = document.getElementById('new-incident-modal');
+const newIncidentBtn = document.getElementById('new-incident-btn');
+const modalCloseBtn = document.getElementById('modal-close-btn');
+const modalCancelBtn = document.getElementById('modal-cancel-btn');
+const newIncidentForm = document.getElementById('new-incident-form');
+const criticiteSelect = document.getElementById('incident-criticite');
+const statutSelect = document.getElementById('incident-statut');
+const modalErrorMessage = document.getElementById('modal-error-message');
+
+function populateSelect(selectElement, enumObject) {
+  if (!selectElement) return;
+  // Clear existing options except for a potential placeholder if needed
+  // selectElement.innerHTML = '<option value="">Sélectionnez...</option>';
+  selectElement.innerHTML = ''; // Clear all
+  for (const key in enumObject) {
+    const option = document.createElement('option');
+    option.value = enumObject[key]; // Use the string value for the option value
+    option.textContent = enumObject[key]; // Display the string value
+    selectElement.appendChild(option);
+  }
+}
+
+function openNewIncidentModal() {
+  if (!newIncidentModal || !newIncidentForm) return;
+  newIncidentForm.reset(); // Reset form fields
+  modalErrorMessage.style.display = 'none'; // Hide error message
+  modalErrorMessage.textContent = '';
+  newIncidentModal.style.display = 'block';
+  // Populate dropdowns each time it opens, in case enums change (though unlikely for this app)
+  populateSelect(criticiteSelect, CriticiteLevel);
+  populateSelect(statutSelect, StatutIncident);
+}
+
+function closeNewIncidentModal() {
+  if (!newIncidentModal) return;
+  newIncidentModal.style.display = 'none';
+}
+
+function initNewIncidentModal() {
+  if (newIncidentBtn) {
+    newIncidentBtn.addEventListener('click', openNewIncidentModal);
+  }
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', closeNewIncidentModal);
+  }
+  if (modalCancelBtn) {
+    modalCancelBtn.addEventListener('click', closeNewIncidentModal);
+  }
+  // Close modal if user clicks outside the modal content
+  if (newIncidentModal) {
+    newIncidentModal.addEventListener('click', function(event) {
+      if (event.target === newIncidentModal) { // Clicked on the modal background (overlay)
+        closeNewIncidentModal();
+      }
+    });
+  }
+  // Form submission will be handled in a separate function
+  if (newIncidentForm) {
+    newIncidentForm.addEventListener('submit', handleNewIncidentSubmit);
+  }
+}
+
+async function handleNewIncidentSubmit(event) {
+  event.preventDefault(); // Prevent default form submission (page reload)
+
+  const titleInput = document.getElementById('incident-title');
+  const typeInput = document.getElementById('incident-type');
+  const sourceInput = document.getElementById('incident-source');
+
+  // Basic client-side validation
+  if (!titleInput.value.trim()) {
+    modalErrorMessage.textContent = "Le titre de l'incident est requis.";
+    modalErrorMessage.style.display = 'block';
+    return;
+  }
+  if (!criticiteSelect.value) {
+    modalErrorMessage.textContent = "Veuillez sélectionner une criticité.";
+    modalErrorMessage.style.display = 'block';
+    return;
+  }
+    if (!statutSelect.value) {
+    modalErrorMessage.textContent = "Veuillez sélectionner un statut.";
+    modalErrorMessage.style.display = 'block';
+    return;
+  }
+
+  modalErrorMessage.style.display = 'none'; // Clear previous errors
+
+  const incidentData = {
+    title: titleInput.value.trim(),
+    criticite: criticiteSelect.value,
+    statut: statutSelect.value,
+    type: typeInput.value.trim() || null, // Send null if empty, or backend handles empty string
+    source: sourceInput.value.trim() || null // Send null if empty
+  };
+
+  try {
+    const response = await fetch('/api/v1/incidents/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(incidentData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: "Erreur inconnue lors de la création de l'incident." }));
+      throw new Error(errorData.detail || `Erreur HTTP: ${response.status}`);
+    }
+
+    // const newIncident = await response.json(); // If you need to use the created incident data
+    await response.json();
+
+    closeNewIncidentModal();
+    await loadIncidentsList(); // Refresh the incidents list
+
+    // Optional: Show a success message (e.g., using a temporary toast notification, not implemented here)
+    console.log("Incident créé avec succès.");
+
+  } catch (error) {
+    console.error("Erreur lors de la création de l'incident:", error);
+    modalErrorMessage.textContent = `Erreur: ${error.message}`;
+    modalErrorMessage.style.display = 'block';
+  }
+}
+
+
+// --- Navigation ---
 function initNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
   
