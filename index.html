@@ -160,11 +160,11 @@
                 <div class="page-header">
                     <h1>Gestion des Incidents</h1>
                     <div class="header-actions">
-                        <button class="btn btn--secondary btn--sm">
+                        <button class="btn btn--secondary btn--sm" id="filter-incidents-btn">
                             <i data-lucide="filter"></i>
                             Filtrer
                         </button>
-                        <button class="btn btn--primary btn--sm">
+                        <button class="btn btn--primary btn--sm" id="new-incident-btn">
                             <i data-lucide="plus"></i>
                             Nouvel Incident
                         </button>
@@ -385,6 +385,49 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- Modal for New Incident -->
+    <div id="new-incident-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header card__header">
+                <h3>Créer un Nouvel Incident</h3>
+                <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body card__body">
+                <form id="new-incident-form">
+                    <div class="form-group">
+                        <label for="incident-title" class="form-label">Titre</label>
+                        <input type="text" id="incident-title" name="title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-criticite" class="form-label">Criticité</label>
+                        <select id="incident-criticite" name="criticite" class="form-control" required>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-statut" class="form-label">Statut</label>
+                        <select id="incident-statut" name="statut" class="form-control" required>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-type" class="form-label">Type (ex: Malware, Intrusion)</label>
+                        <input type="text" id="incident-type" name="type" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="incident-source" class="form-label">Source (ex: Endpoint 1.2.3.4)</label>
+                        <input type="text" id="incident-source" name="source" class="form-control">
+                    </div>
+                    <div id="modal-error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn--secondary" id="modal-cancel-btn">Annuler</button>
+                        <button type="submit" class="btn btn--primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

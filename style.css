@@ -1329,3 +1329,81 @@ select.form-control {
   border-color: var(--color-primary);
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
 }
+
+/* Modal Styles */
+.modal {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1000; /* Sit on top */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.6); /* Black w/ opacity for overlay */
+  padding-top: 60px; /* Location of the box */
+}
+
+.modal-content {
+  background-color: var(--color-surface);
+  margin: 5% auto; /* 5% from the top and centered */
+  padding: 0; /* Padding will be handled by card__header and card__body */
+  border: 1px solid var(--color-border);
+  width: 80%; /* Could be more or less, depending on screen size */
+  max-width: 600px; /* Maximum width */
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: fadeInModal 0.3s ease-out;
+}
+
+@keyframes fadeInModal {
+  from {opacity: 0; transform: translateY(-20px);}
+  to {opacity: 1; transform: translateY(0);}
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* padding handled by .card__header */
+  border-bottom: 1px solid var(--color-card-border-inner);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.modal-close-btn {
+  color: var(--color-text-secondary);
+  font-size: 28px;
+  font-weight: bold;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-close-btn:hover,
+.modal-close-btn:focus {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+/* .modal-body padding handled by .card__body */
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-12);
+  margin-top: var(--space-24);
+}
+
+/* Error message style within modal */
+.modal-body .error-message {
+  color: var(--color-error);
+  background-color: rgba(var(--color-error-rgb), 0.1);
+  border: 1px solid rgba(var(--color-error-rgb), 0.2);
+  padding: var(--space-12);
+  border-radius: var(--radius-base);
+  margin-bottom: var(--space-16); /* Ensure it has margin if it was specified on the element */
+}
