@@ -73,6 +73,67 @@ The backend is built with Python and FastAPI.
     ```bash
     curl http://127.0.0.1:8000/health
     ```
-    You should see `{"status":"ok"}`.
+    You should see `{"status":"ok", "database": "connected"}` (if the database is reachable).
+
+### API Endpoints
+
+All API endpoints are prefixed with `/api/v1`.
+
+#### Incidents API (`/api/v1/incidents/`)
+
+*   **`POST /incidents/`**: Create a new incident.
+    *   **Request Body**: JSON object matching the `IncidentCreate` schema (see `backend/schemas.py`).
+        ```json
+        {
+          "title": "Suspicious Login Attempt",
+          "criticite": "Élevé",
+          "statut": "Ouvert",
+          "type": "Auth",
+          "source": "VPN Gateway"
+        }
+        ```
+        *(Note: `CriticiteLevel` and `StatutIncident` are enums: `Critique`, `Élevé`, `Moyen`, `Bas` for criticite; `Ouvert`, `En cours`, `Résolu`, `Fermé` for statut)*
+    *   **Response Body**: JSON object of the created incident, matching `IncidentRead` schema. Status code 201.
+
+*   **`GET /incidents/`**: List all incidents.
+    *   **Query Parameters**:
+        *   `skip` (int, optional, default 0): Number of records to skip.
+        *   `limit` (int, optional, default 100): Maximum number of records to return (max 200).
+    *   **Response Body**: JSON object containing `items` (list of incidents matching `IncidentRead` schema) and `total` (total number of incidents).
+        ```json
+        {
+          "items": [
+            {
+              "title": "Suspicious Login Attempt",
+              "criticite": "Élevé",
+              "statut": "Ouvert",
+              "type": "Auth",
+              "source": "VPN Gateway",
+              "id": 1,
+              "timestamp": "2023-10-27T10:30:00Z"
+            }
+          ],
+          "total": 1
+        }
+        ```
+
+*   **`GET /incidents/{incident_id}`**: Get a specific incident by its ID.
+    *   **Path Parameter**: `incident_id` (int).
+    *   **Response Body**: JSON object of the incident, matching `IncidentRead` schema. Status 404 if not found.
+
+*   **`PUT /incidents/{incident_id}`**: Update an existing incident.
+    *   **Path Parameter**: `incident_id` (int).
+    *   **Request Body**: JSON object with fields to update (see `IncidentUpdate` schema in `backend/schemas.py`). All fields are optional.
+        ```json
+        {
+          "statut": "En cours",
+          "title": "Investigation of Suspicious Login"
+        }
+        ```
+    *   **Response Body**: JSON object of the updated incident, matching `IncidentRead` schema. Status 404 if not found.
+
+*   **`DELETE /incidents/{incident_id}`**: Delete an incident.
+    *   **Path Parameter**: `incident_id` (int).
+    *   **Response**: Status code 204 (No Content) on successful deletion. Status 404 if not found.
 
 (Further backend setup and details will be added as development progresses)

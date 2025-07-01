@@ -9,6 +9,9 @@ from sqlalchemy import select, func
 # but for local development and simplicity, we can do it on startup.
 Base.metadata.create_all(bind=engine)
 
+# Import the API router
+from .api.endpoints import router as api_router
+
 
 @asynccontextmanager
 async def app_lifespan(current_app: FastAPI): # Renamed app parameter to current_app
@@ -35,6 +38,9 @@ async def health_check():
     db_status = "connected" if hasattr(app.state, "db_connected") and app.state.db_connected else "disconnected"
     # For a more robust check, you might attempt a lightweight query here if db_status is "connected"
     return {"status": "ok", "database": db_status }
+
+# Include the API router
+app.include_router(api_router, prefix="/api/v1") # Prefixing API routes with /api/v1
 
 @app.get("/test-db")
 async def test_db_connection():
