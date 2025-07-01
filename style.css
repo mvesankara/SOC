@@ -1407,3 +1407,61 @@ select.form-control {
   border-radius: var(--radius-base);
   margin-bottom: var(--space-16); /* Ensure it has margin if it was specified on the element */
 }
+
+/* Login View Styles */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--color-background); /* Match app background */
+  padding: var(--space-20);
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  /* .card styles from existing CSS will apply for background, border, shadow, radius */
+}
+
+.login-box .card__header h2 {
+  font-size: var(--font-size-2xl); /* Slightly smaller than page h1 */
+  color: var(--color-text);
+  text-align: center;
+  width: 100%;
+}
+
+.login-box .form-control {
+  margin-bottom: var(--space-12); /* Space between input and next label */
+}
+
+.login-box .btn--full-width {
+  margin-top: var(--space-16); /* Space above the button */
+}
+
+.login-box .error-message {
+    /* Styles for error message are already defined from modal,
+       but ensure they work in this context too if needed.
+       The existing .error-message style should be sufficient. */
+    text-align: center;
+}
+
+/* Sidebar Footer for Logout Button */
+.sidebar-footer {
+  padding: var(--space-16) var(--space-20);
+  margin-top: auto; /* Pushes it to the bottom */
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar-footer .btn {
+  display: flex; /* Ensure icon and text align well */
+  align-items: center;
+  justify-content: center; /* Center content if button is full width */
+  gap: var(--space-8);
+}
+
+.sidebar-footer .btn i {
+  /* Ensure Lucide icons in button are sized correctly if not already handled */
+   width: 18px; /* Adjust as needed */
+   height: 18px; /* Adjust as needed */
+}

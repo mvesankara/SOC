@@ -64,3 +64,13 @@ class UserRead(UserBase):
 class UserPasswordChange(BaseModel):
     old_password: str
     new_password: str
+
+# --- Token Schemas ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+    # You can add other fields here like user_id, roles, etc.

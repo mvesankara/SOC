@@ -9,7 +9,29 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
-    <div class="app-layout">
+    <div id="login-view" class="login-container">
+        <div class="login-box card">
+            <div class="card__header">
+                <h2>SOCaaS Login</h2>
+            </div>
+            <div class="card__body">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username" class="form-label">Nom d'utilisateur</label>
+                        <input type="text" id="username" name="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password" class="form-label">Mot de passe</label>
+                        <input type="password" id="password" name="password" class="form-control" required>
+                    </div>
+                    <div id="login-error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+                    <button type="submit" class="btn btn--primary btn--full-width">Se Connecter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-layout" class="app-layout" style="display: none;"> <!-- Initially hidden -->
         <!-- Navigation latérale -->
         <nav class="sidebar">
             <div class="sidebar-header">
@@ -42,6 +64,12 @@
                     <span>Configuration</span>
                 </li>
             </ul>
+            <div class="sidebar-footer">
+                <button class="btn btn--secondary btn--full-width" id="logout-btn">
+                    <i data-lucide="log-out"></i>
+                    <span>Déconnexion</span>
+                </button>
+            </div>
         </nav>
 
         <!-- Contenu principal -->

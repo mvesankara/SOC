@@ -63,6 +63,12 @@ const StatutIncident = {
   FERME: "Fermé"
 };
 
+// DOM Elements for Auth
+const loginView = document.getElementById('login-view');
+const appLayout = document.getElementById('app-layout');
+const loginForm = document.getElementById('login-form');
+const loginErrorMessage = document.getElementById('login-error-message');
+
 // Initialisation de l'application
 document.addEventListener('DOMContentLoaded', function() {
   // Initialiser Lucide icons
@@ -73,21 +79,159 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialiser la navigation
   initNavigation();
   
-  // Charger les données initiales
-  loadDashboardData();
+  // Charger les données initiales (will be conditional based on auth)
+  // loadDashboardData();
   
   // Initialiser les filtres
   initFilters();
   
-  // Démarrer les mises à jour en temps réel
-  startRealTimeUpdates();
+  // Démarrer les mises à jour en temps réel (will be conditional)
+  // startRealTimeUpdates();
   
-  // Mettre à jour l'heure
-  updateLastUpdateTime();
+  // Mettre à jour l'heure (will be conditional)
+  // updateLastUpdateTime();
 
   // Initialiser les interactions du modal
   initNewIncidentModal();
+
+  // Initialize Auth related functionalities
+  initAuth();
 });
+
+
+// --- Auth Functions ---
+function storeToken(token) {
+  localStorage.setItem('socaas_token', token);
+}
+
+function getToken() {
+  return localStorage.getItem('socaas_token');
+}
+
+function clearToken() {
+  localStorage.removeItem('socaas_token');
+}
+
+async function handleLoginSubmit(event) {
+  event.preventDefault();
+  if (!loginForm || !loginErrorMessage) return;
+
+  const username = loginForm.username.value;
+  const password = loginForm.password.value;
+
+  if (!username || !password) {
+    loginErrorMessage.textContent = "Nom d'utilisateur et mot de passe requis.";
+    loginErrorMessage.style.display = 'block';
+    return;
+  }
+  loginErrorMessage.style.display = 'none';
+
+  // FastAPI's OAuth2PasswordRequestForm expects form-urlencoded data
+  const formData = new URLSearchParams();
+  formData.append('username', username);
+  formData.append('password', password);
+
+  try {
+    const response = await fetch('/api/v1/auth/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      loginErrorMessage.textContent = data.detail || `Erreur HTTP: ${response.status}`;
+      loginErrorMessage.style.display = 'block';
+      return;
+    }
+
+    storeToken(data.access_token);
+    showAppLayout(); // Show main app, hide login
+    loadDashboardData(); // Load initial data for the dashboard
+    startRealTimeUpdates(); // Start updates now that user is logged in
+    updateLastUpdateTime(); // Update time display
+
+  } catch (error) {
+    console.error("Erreur de connexion:", error);
+    loginErrorMessage.textContent = "Erreur de connexion. Vérifiez la console pour plus de détails.";
+    loginErrorMessage.style.display = 'block';
+  }
+}
+
+function showLoginView() {
+  if (loginView) loginView.style.display = 'flex'; // Assuming .login-container uses flex
+  if (appLayout) appLayout.style.display = 'none';
+}
+
+function showAppLayout() {
+  if (loginView) loginView.style.display = 'none';
+  if (appLayout) appLayout.style.display = 'flex'; // Assuming .app-layout uses flex
+  // Potentially refresh icons if they were not created due to appLayout being hidden
+  if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+  }
+  // Navigate to dashboard by default after login
+  switchPage('dashboard');
+}
+
+function initAuth() {
+  if (loginForm) {
+    loginForm.addEventListener('submit', handleLoginSubmit);
+  }
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      clearToken();
+      showLoginView();
+      // Potentially clear other app state if needed
+      // For now, just showing login view is the main action
+      console.log("Utilisateur déconnecté.");
+    });
+  }
+  // Initial check for token will be in step 7 (Conditional UI Rendering)
+  checkAuthStatus(); // Call this to determine initial UI state
+}
+
+async function checkAuthStatus() {
+  const token = getToken();
+  if (token) {
+    try {
+      const response = await fetch('/api/v1/auth/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        // const user = await response.json(); // We can store user info if needed
+        await response.json();
+        console.log("Utilisateur authentifié via token existant.");
+        showAppLayout();
+        loadDashboardData(); // Load initial data for the dashboard
+        startRealTimeUpdates();
+        updateLastUpdateTime();
+      } else {
+        // Token is invalid or expired
+        console.log("Token existant invalide ou expiré.");
+        clearToken();
+        showLoginView();
+      }
+    } catch (error) {
+      // Network error or other issue validating token
+      console.error("Erreur lors de la vérification du statut d'authentification:", error);
+      clearToken(); // Clear potentially problematic token
+      showLoginView();
+    }
+  } else {
+    // No token found
+    console.log("Aucun token trouvé, affichage de la page de connexion.");
+    showLoginView();
+  }
+}
+
 
 // --- Modal Functions ---
 const newIncidentModal = document.getElementById('new-incident-modal');
@@ -187,15 +331,33 @@ async function handleNewIncidentSubmit(event) {
   };
 
   try {
+    const token = getToken();
+    if (!token) {
+      // Should not happen if UI is correctly managed, but as a safeguard
+      modalErrorMessage.textContent = "Vous n'êtes pas connecté. Veuillez vous reconnecter.";
+      modalErrorMessage.style.display = 'block';
+      showLoginView();
+      return;
+    }
+
     const response = await fetch('/api/v1/incidents/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(incidentData),
     });
 
     if (!response.ok) {
+      if (response.status === 401) { // Unauthorized
+        clearToken();
+        closeNewIncidentModal(); // Close modal before redirecting
+        showLoginView();
+        // Display a more general error or alert for session expiry if possible
+        // For now, the login view will appear.
+        throw new Error("Session expirée ou invalide. Création annulée. Veuillez vous reconnecter.");
+      }
       const errorData = await response.json().catch(() => ({ detail: "Erreur inconnue lors de la création de l'incident." }));
       throw new Error(errorData.detail || `Erreur HTTP: ${response.status}`);
     }
@@ -378,11 +540,22 @@ async function loadIncidentsList(incidentsToDisplay = null) {
     incidentsToShow = incidentsToDisplay;
   } else {
     try {
+      const token = getToken();
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       // Fetch initial data from the backend API
       // Assuming default pagination (skip=0, limit=100) is acceptable for now
       // For more robust pagination, pass skip/limit from UI state
-      const response = await fetch('/api/v1/incidents/?limit=100'); // Fetch up to 100 incidents
+      const response = await fetch('/api/v1/incidents/?limit=100', { headers }); // Fetch up to 100 incidents
       if (!response.ok) {
+        if (response.status === 401) { // Unauthorized
+          clearToken(); // Clear invalid token
+          showLoginView(); // Redirect to login
+          throw new Error("Session expirée ou invalide. Veuillez vous reconnecter.");
+        }
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       const data = await response.json(); // This should be schemas.IncidentList

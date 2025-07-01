@@ -10,7 +10,8 @@ from sqlalchemy import select, func
 Base.metadata.create_all(bind=engine)
 
 # Import the API router
-from .api.endpoints import router as api_router
+from .api.endpoints import router as incidents_api_router # Renamed for clarity
+from .api.auth import router as auth_api_router # Import the new auth router
 
 
 @asynccontextmanager
@@ -39,8 +40,10 @@ async def health_check():
     # For a more robust check, you might attempt a lightweight query here if db_status is "connected"
     return {"status": "ok", "database": db_status }
 
-# Include the API router
-app.include_router(api_router, prefix="/api/v1") # Prefixing API routes with /api/v1
+# Include the API routers
+app.include_router(incidents_api_router, prefix="/api/v1/incidents", tags=["Incidents"])
+app.include_router(auth_api_router, prefix="/api/v1/auth", tags=["Authentication"])
+
 
 @app.get("/test-db")
 async def test_db_connection():
