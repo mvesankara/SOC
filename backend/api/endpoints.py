@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from .. import crud_incidents, schemas, models # Relative imports for backend package
 from ..database import database # If direct db access is needed, though CRUD handles it
+from .auth import get_current_active_user # Import the dependency
 
 router = APIRouter()
 
@@ -16,10 +17,14 @@ router = APIRouter()
 
 
 @router.post("/incidents/", response_model=schemas.IncidentRead, status_code=201)
-async def create_new_incident(incident: schemas.IncidentCreate):
+async def create_new_incident(
+    incident: schemas.IncidentCreate,
+    current_user: Annotated[models.User, Depends(get_current_active_user)]
+):
     """
-    Create a new incident.
+    Create a new incident. Requires authentication.
     """
+    # TODO: Future enhancement: associate incident with current_user.id
     created_incident = await crud_incidents.create_incident(incident_data=incident)
     # The crud_incidents.create_incident now returns a models.Incident like object (RowProxy)
     # Pydantic's from_orm/from_attributes will handle the conversion in response_model
@@ -28,10 +33,11 @@ async def create_new_incident(incident: schemas.IncidentCreate):
 @router.get("/incidents/", response_model=schemas.IncidentList)
 async def read_all_incidents(
     skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
-    limit: int = Query(100, ge=1, le=200, description="Maximum number of records to return")
+    limit: int = Query(100, ge=1, le=200, description="Maximum number of records to return"),
+    current_user: Annotated[models.User, Depends(get_current_active_user)]
 ):
     """
-    Retrieve all incidents with pagination.
+    Retrieve all incidents with pagination. Requires authentication.
     """
     incidents_records = await crud_incidents.get_incidents(skip=skip, limit=limit)
     total_incidents = await crud_incidents.count_incidents()
@@ -44,9 +50,12 @@ async def read_all_incidents(
 
 
 @router.get("/incidents/{incident_id}", response_model=schemas.IncidentRead)
-async def read_single_incident(incident_id: int):
+async def read_single_incident(
+    incident_id: int,
+    current_user: Annotated[models.User, Depends(get_current_active_user)]
+):
     """
-    Retrieve a single incident by its ID.
+    Retrieve a single incident by its ID. Requires authentication.
     """
     db_incident = await crud_incidents.get_incident(incident_id=incident_id)
     if db_incident is None:
@@ -55,10 +64,15 @@ async def read_single_incident(incident_id: int):
 
 
 @router.put("/incidents/{incident_id}", response_model=schemas.IncidentRead)
-async def update_existing_incident(incident_id: int, incident_update: schemas.IncidentUpdate):
+async def update_existing_incident(
+    incident_id: int,
+    incident_update: schemas.IncidentUpdate,
+    current_user: Annotated[models.User, Depends(get_current_active_user)]
+):
     """
-    Update an existing incident.
+    Update an existing incident. Requires authentication.
     """
+    # TODO: Future: Add logic to check if current_user has permission to update this incident.
     updated_incident = await crud_incidents.update_incident(incident_id=incident_id, incident_data=incident_update)
     if updated_incident is None:
         # This case implies the incident_id itself was not found by crud_incidents.update_incident's internal get_incident call
@@ -67,10 +81,14 @@ async def update_existing_incident(incident_id: int, incident_update: schemas.In
 
 
 @router.delete("/incidents/{incident_id}", status_code=204) # 204 No Content for successful deletion
-async def delete_existing_incident(incident_id: int):
+async def delete_existing_incident(
+    incident_id: int,
+    current_user: Annotated[models.User, Depends(get_current_active_user)]
+):
     """
-    Delete an incident by its ID.
+    Delete an incident by its ID. Requires authentication.
     """
+    # TODO: Future: Add logic to check if current_user has permission to delete this incident.
     success = await crud_incidents.delete_incident(incident_id=incident_id)
     if not success:
         raise HTTPException(status_code=404, detail="Incident not found or could not be deleted")
