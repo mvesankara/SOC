@@ -161,6 +161,43 @@ async function handleLoginSubmit(event) {
   }
 }
 
+async function handleDeleteIncident(incidentId) {
+  const token = getToken();
+  if (!token) {
+    alert("Non authentifié. Veuillez vous reconnecter.");
+    showLoginView();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/incidents/${incidentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); showLoginView();
+        throw new Error("Session expirée. Suppression annulée. Veuillez vous reconnecter.");
+      }
+      // Try to get more specific error from backend if available
+      const errorData = await response.json().catch(() => null);
+      const detail = errorData && errorData.detail ? errorData.detail : `Erreur HTTP: ${response.status}`;
+      throw new Error(detail);
+    }
+
+    // Status 204 No Content means successful deletion, no JSON body to parse.
+    console.log(`Incident ${incidentId} supprimé avec succès.`);
+    await loadIncidentsList(); // Refresh the incidents list
+
+  } catch (error) {
+    console.error(`Erreur lors de la suppression de l'incident ${incidentId}:`, error);
+    alert(`Erreur: ${error.message}`); // Use alert for delete errors for now
+  }
+}
+
 function showLoginView() {
   if (loginView) loginView.style.display = 'flex'; // Assuming .login-container uses flex
   if (appLayout) appLayout.style.display = 'none';
@@ -243,7 +280,21 @@ const criticiteSelect = document.getElementById('incident-criticite');
 const statutSelect = document.getElementById('incident-statut');
 const modalErrorMessage = document.getElementById('modal-error-message');
 
-function populateSelect(selectElement, enumObject) {
+// DOM Elements for Edit Incident Modal
+const editIncidentModal = document.getElementById('edit-incident-modal');
+const editModalCloseBtn = document.getElementById('edit-modal-close-btn');
+const editModalCancelBtn = document.getElementById('edit-modal-cancel-btn');
+const editIncidentForm = document.getElementById('edit-incident-form');
+const editIncidentIdInput = document.getElementById('edit-incident-id');
+const editIncidentTitleInput = document.getElementById('edit-incident-title');
+const editIncidentCriticiteSelect = document.getElementById('edit-incident-criticite');
+const editIncidentStatutSelect = document.getElementById('edit-incident-statut');
+const editIncidentTypeInput = document.getElementById('edit-incident-type');
+const editIncidentSourceInput = document.getElementById('edit-incident-source');
+const editModalErrorMessage = document.getElementById('edit-modal-error-message');
+
+
+function populateSelect(selectElement, enumObject,selectedValue = null) {
   if (!selectElement) return;
   // Clear existing options except for a potential placeholder if needed
   // selectElement.innerHTML = '<option value="">Sélectionnez...</option>';
@@ -252,6 +303,9 @@ function populateSelect(selectElement, enumObject) {
     const option = document.createElement('option');
     option.value = enumObject[key]; // Use the string value for the option value
     option.textContent = enumObject[key]; // Display the string value
+    if (selectedValue && enumObject[key] === selectedValue) {
+      option.selected = true;
+    }
     selectElement.appendChild(option);
   }
 }
@@ -294,7 +348,191 @@ function initNewIncidentModal() {
   if (newIncidentForm) {
     newIncidentForm.addEventListener('submit', handleNewIncidentSubmit);
   }
+  // Event listener for edit modal form submission will be added separately
 }
+
+
+// --- Edit Incident Modal Functions ---
+async function openEditIncidentModal(incidentId) {
+  if (!editIncidentModal || !editIncidentForm) return;
+
+  try {
+    const token = getToken();
+    if (!token) {
+      showLoginView();
+      throw new Error("Non authentifié. Veuillez vous connecter.");
+    }
+    const response = await fetch(`/api/v1/incidents/${incidentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); showLoginView();
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+      throw new Error(`Erreur HTTP: ${response.status} - Impossible de charger les détails de l'incident.`);
+    }
+    const incident = await response.json();
+
+    // Populate form
+    editIncidentIdInput.value = incident.id;
+    editIncidentTitleInput.value = incident.title;
+    populateSelect(editIncidentCriticiteSelect, CriticiteLevel, incident.criticite);
+    populateSelect(editIncidentStatutSelect, StatutIncident, incident.statut);
+    editIncidentTypeInput.value = incident.type || '';
+    editIncidentSourceInput.value = incident.source || '';
+
+    editModalErrorMessage.style.display = 'none';
+    editModalErrorMessage.textContent = '';
+    editIncidentModal.style.display = 'block';
+
+  } catch (error) {
+    console.error("Erreur lors de l'ouverture du modal de modification:", error);
+    // Display a more general error to the user, perhaps not in the modal itself if it can't open
+    alert(`Erreur: ${error.message}`);
+  }
+}
+
+function closeEditIncidentModal() {
+  if (editIncidentModal) {
+    editIncidentModal.style.display = 'none';
+  }
+}
+
+function initEditIncidentModalListeners() {
+  // Event delegation for edit and delete buttons on the incidents list
+  const incidentsListContainer = document.getElementById('incidents-list');
+  if (incidentsListContainer) {
+    incidentsListContainer.addEventListener('click', async function(event) { // Make async for delete
+      const editButton = event.target.closest('.edit-btn');
+      const deleteButton = event.target.closest('.delete-btn');
+
+      if (editButton) {
+        const incidentId = editButton.dataset.incidentId;
+        if (incidentId) {
+          openEditIncidentModal(incidentId);
+        }
+      } else if (deleteButton) {
+        const incidentId = deleteButton.dataset.incidentId;
+        if (incidentId) {
+          if (confirm(`Êtes-vous sûr de vouloir supprimer l'incident #${incidentId} ?`)) {
+            await handleDeleteIncident(incidentId);
+          }
+        }
+      }
+    });
+  }
+
+  if (editModalCloseBtn) {
+    editModalCloseBtn.addEventListener('click', closeEditIncidentModal);
+  }
+  if (editModalCancelBtn) {
+    editModalCancelBtn.addEventListener('click', closeEditIncidentModal);
+  }
+  if (editIncidentModal) {
+    editIncidentModal.addEventListener('click', function(event) {
+      if (event.target === editIncidentModal) {
+        closeEditIncidentModal();
+      }
+    });
+  }
+  // Edit form submission listener
+  if (editIncidentForm) {
+    editIncidentForm.addEventListener('submit', handleEditIncidentSubmit);
+  }
+}
+
+async function handleEditIncidentSubmit(event) {
+  event.preventDefault();
+  if (!editIncidentForm || !editModalErrorMessage || !editIncidentIdInput) return;
+
+  const incidentId = editIncidentIdInput.value;
+
+  // Basic client-side validation
+  if (!editIncidentTitleInput.value.trim()) {
+    editModalErrorMessage.textContent = "Le titre de l'incident est requis.";
+    editModalErrorMessage.style.display = 'block';
+    return;
+  }
+   if (!editIncidentCriticiteSelect.value) {
+    editModalErrorMessage.textContent = "Veuillez sélectionner une criticité.";
+    editModalErrorMessage.style.display = 'block';
+    return;
+  }
+  if (!editIncidentStatutSelect.value) {
+    editModalErrorMessage.textContent = "Veuillez sélectionner un statut.";
+    editModalErrorMessage.style.display = 'block';
+    return;
+  }
+  editModalErrorMessage.style.display = 'none'; // Clear previous errors
+
+  const incidentUpdateData = {
+    title: editIncidentTitleInput.value.trim(),
+    criticite: editIncidentCriticiteSelect.value,
+    statut: editIncidentStatutSelect.value,
+    type: editIncidentTypeInput.value.trim() || null,
+    source: editIncidentSourceInput.value.trim() || null,
+  };
+
+  const token = getToken();
+  if (!token) {
+    editModalErrorMessage.textContent = "Non authentifié. Veuillez vous reconnecter.";
+    editModalErrorMessage.style.display = 'block';
+    showLoginView();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/incidents/${incidentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(incidentUpdateData),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); closeEditIncidentModal(); showLoginView();
+        throw new Error("Session expirée. Modification annulée. Veuillez vous reconnecter.");
+      }
+      const errorData = await response.json().catch(() => ({ detail: "Erreur inconnue lors de la mise à jour de l'incident." }));
+      throw new Error(errorData.detail || `Erreur HTTP: ${response.status}`);
+    }
+
+    await response.json(); // Process the updated incident data if needed
+
+    closeEditIncidentModal();
+    await loadIncidentsList(); // Refresh the incidents list
+    console.log(`Incident ${incidentId} mis à jour avec succès.`);
+
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour de l'incident ${incidentId}:`, error);
+    editModalErrorMessage.textContent = `Erreur: ${error.message}`;
+    editModalErrorMessage.style.display = 'block';
+  }
+}
+
+
+// Modify initAuth to also initialize edit modal listeners
+function initAuth() {
+  if (loginForm) {
+    loginForm.addEventListener('submit', handleLoginSubmit);
+  }
+
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function() {
+      clearToken();
+      showLoginView();
+      console.log("Utilisateur déconnecté.");
+    });
+  }
+  checkAuthStatus();
+  initEditIncidentModalListeners(); // Call here
+}
+
 
 async function handleNewIncidentSubmit(event) {
   event.preventDefault(); // Prevent default form submission (page reload)
@@ -602,12 +840,14 @@ async function loadIncidentsList(incidentsToDisplay = null) {
       <div class="col-date">${incident.timestamp}</div>
       <div class="col-actions">
         <div class="incident-actions">
-          <button class="action-btn">Voir</button>
-          <button class="action-btn">Assigner</button>
+          <button class="action-btn view-btn" data-incident-id="${incident.id}">Voir</button>
+          <button class="action-btn edit-btn" data-incident-id="${incident.id}">Modifier</button>
+          <button class="action-btn delete-btn" data-incident-id="${incident.id}">Supprimer</button>
         </div>
       </div>
     `;
-    
+    // TODO: Add styling for .view-btn, .edit-btn, .delete-btn (e.g., different colors) if desired
+    // For now, they use the generic .action-btn style.
     container.appendChild(incidentDiv);
   });
 }
