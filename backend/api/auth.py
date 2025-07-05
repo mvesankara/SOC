@@ -79,4 +79,30 @@ async def read_users_me(
     # Pydantic's from_attributes in schemas.UserRead will handle the conversion.
     return current_user
 
-# We can add other auth-related endpoints here later, like /register, /password-recovery etc.
+
+@router.post("/register", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
+async def register_user(user_in: schemas.UserCreate):
+    """
+    Create new user.
+    """
+    # Check if username already exists
+    existing_user_by_username = await crud_users.get_user_by_username(username=user_in.username)
+    if existing_user_by_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered.",
+        )
+
+    # Check if email already exists (if email is provided)
+    if user_in.email:
+        existing_user_by_email = await crud_users.get_user_by_email(email=user_in.email)
+        if existing_user_by_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered.",
+            )
+
+    user = await crud_users.create_user(user_data=user_in)
+    return user
+
+# We can add other auth-related endpoints here later, like /password-recovery etc.
