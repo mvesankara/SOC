@@ -68,6 +68,14 @@ const loginView = document.getElementById('login-view');
 const appLayout = document.getElementById('app-layout');
 const loginForm = document.getElementById('login-form');
 const loginErrorMessage = document.getElementById('login-error-message');
+const showRegisterLink = document.getElementById('show-register-link');
+
+// DOM Elements for Registration
+const registrationView = document.getElementById('registration-view');
+const registrationForm = document.getElementById('registration-form'); // Will be used in next step
+const registrationErrorMessage = document.getElementById('registration-error-message'); // Will be used in next step
+const showLoginLink = document.getElementById('show-login-link');
+
 
 // Initialisation de l'application
 document.addEventListener('DOMContentLoaded', function() {
@@ -199,18 +207,28 @@ async function handleDeleteIncident(incidentId) {
 }
 
 function showLoginView() {
-  if (loginView) loginView.style.display = 'flex'; // Assuming .login-container uses flex
+  if (loginView) loginView.style.display = 'flex';
+  if (registrationView) registrationView.style.display = 'none';
   if (appLayout) appLayout.style.display = 'none';
+  if (loginForm) loginForm.reset();
+  if (loginErrorMessage) loginErrorMessage.style.display = 'none';
+}
+
+function showRegistrationView() {
+  if (loginView) loginView.style.display = 'none';
+  if (registrationView) registrationView.style.display = 'flex'; // Assuming .registration-container uses flex
+  if (appLayout) appLayout.style.display = 'none';
+  if (registrationForm) registrationForm.reset();
+  if (registrationErrorMessage) registrationErrorMessage.style.display = 'none';
 }
 
 function showAppLayout() {
   if (loginView) loginView.style.display = 'none';
-  if (appLayout) appLayout.style.display = 'flex'; // Assuming .app-layout uses flex
-  // Potentially refresh icons if they were not created due to appLayout being hidden
+  if (registrationView) registrationView.style.display = 'none';
+  if (appLayout) appLayout.style.display = 'flex';
   if (typeof lucide !== 'undefined') {
       lucide.createIcons();
   }
-  // Navigate to dashboard by default after login
   switchPage('dashboard');
 }
 
@@ -525,12 +543,88 @@ function initAuth() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function() {
       clearToken();
-      showLoginView();
+      showLoginView(); // Show login view on logout
       console.log("Utilisateur déconnecté.");
     });
   }
+
+  if (showRegisterLink) {
+    showRegisterLink.addEventListener('click', function(event) {
+      event.preventDefault();
+      showRegistrationView();
+    });
+  }
+
+  if (showLoginLink) {
+    showLoginLink.addEventListener('click', function(event) {
+      event.preventDefault();
+      showLoginView();
+    });
+  }
+
   checkAuthStatus();
-  initEditIncidentModalListeners(); // Call here
+  initEditIncidentModalListeners();
+
+  // Add event listener for registration form
+  if (registrationForm) {
+    registrationForm.addEventListener('submit', handleRegistrationSubmit);
+  }
+}
+
+async function handleRegistrationSubmit(event) {
+  event.preventDefault();
+  if (!registrationForm || !registrationErrorMessage) return;
+
+  const username = registrationForm.username.value.trim();
+  const email = registrationForm.email.value.trim(); // Optional, can be empty
+  const password = registrationForm.password.value;
+  const confirmPassword = registrationForm.confirm_password.value;
+
+  // Client-side validation
+  if (!username || !password || !confirmPassword) {
+    registrationErrorMessage.textContent = "Nom d'utilisateur, mot de passe et confirmation sont requis.";
+    registrationErrorMessage.style.display = 'block';
+    return;
+  }
+  if (password !== confirmPassword) {
+    registrationErrorMessage.textContent = "Les mots de passe ne correspondent pas.";
+    registrationErrorMessage.style.display = 'block';
+    return;
+  }
+  registrationErrorMessage.style.display = 'none'; // Clear previous errors
+
+  const userData = {
+    username: username,
+    email: email || null, // Send null if email is empty
+    password: password,
+  };
+
+  try {
+    const response = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
+
+    const data = await response.json(); // Attempt to parse JSON for both success and error
+
+    if (!response.ok) {
+      registrationErrorMessage.textContent = data.detail || `Erreur HTTP: ${response.status}. Veuillez réessayer.`;
+      registrationErrorMessage.style.display = 'block';
+      return;
+    }
+
+    // Registration successful
+    alert("Inscription réussie ! Vous pouvez maintenant vous connecter."); // Simple success message
+    showLoginView(); // Redirect to login view
+
+  } catch (error) {
+    console.error("Erreur d'inscription:", error);
+    registrationErrorMessage.textContent = "Erreur d'inscription. Vérifiez la console pour plus de détails.";
+    registrationErrorMessage.style.display = 'block';
+  }
 }
 
 
