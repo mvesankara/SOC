@@ -63,6 +63,12 @@ const StatutIncident = {
   FERME: "Fermé"
 };
 
+// Pagination and Filter State
+let currentIncidentsPage = 1;
+const incidentsPerPage = 15; // Or make this configurable
+let totalIncidents = 0;
+let currentIncidentFilters = { status: null, criticite: null };
+
 // DOM Elements for Auth
 const loginView = document.getElementById('login-view');
 const appLayout = document.getElementById('app-layout');
@@ -72,9 +78,14 @@ const showRegisterLink = document.getElementById('show-register-link');
 
 // DOM Elements for Registration
 const registrationView = document.getElementById('registration-view');
-const registrationForm = document.getElementById('registration-form'); // Will be used in next step
-const registrationErrorMessage = document.getElementById('registration-error-message'); // Will be used in next step
+const registrationForm = document.getElementById('registration-form');
+const registrationErrorMessage = document.getElementById('registration-error-message');
 const showLoginLink = document.getElementById('show-login-link');
+
+// DOM Elements for Pagination
+const prevPageBtn = document.getElementById('prev-page-btn');
+const nextPageBtn = document.getElementById('next-page-btn');
+const pageInfoSpan = document.getElementById('page-info');
 
 
 // Initialisation de l'application
@@ -198,7 +209,15 @@ async function handleDeleteIncident(incidentId) {
 
     // Status 204 No Content means successful deletion, no JSON body to parse.
     console.log(`Incident ${incidentId} supprimé avec succès.`);
-    await loadIncidentsList(); // Refresh the incidents list
+    // When deleting, if it was the last item on a page, and that page > 1,
+    // we might want to go to the previous page.
+    // For simplicity now, just reload current page or page 1 if current becomes empty.
+    if (allIncidentsData.length === 1 && currentIncidentsPage > 1) {
+      await loadIncidentsList(currentIncidentsPage - 1, currentIncidentFilters);
+    } else {
+      await loadIncidentsList(currentIncidentsPage, currentIncidentFilters);
+    }
+    // await loadIncidentsList(); // Refresh the incidents list - old way
 
   } catch (error) {
     console.error(`Erreur lors de la suppression de l'incident ${incidentId}:`, error);
@@ -569,7 +588,144 @@ function initAuth() {
   if (registrationForm) {
     registrationForm.addEventListener('submit', handleRegistrationSubmit);
   }
+
+  // Add event listeners for pagination buttons
+  if (prevPageBtn) {
+    prevPageBtn.addEventListener('click', () => {
+      if (currentIncidentsPage > 1) {
+        loadIncidentsList(currentIncidentsPage - 1, currentIncidentFilters);
+      }
+    });
+  }
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener('click', () => {
+      const totalPages = Math.ceil(totalIncidents / incidentsPerPage);
+      if (currentIncidentsPage < totalPages) {
+        loadIncidentsList(currentIncidentsPage + 1, currentIncidentFilters);
+      }
+    });
+  }
 }
+
+function updatePaginationUI() {
+  if (!pageInfoSpan || !prevPageBtn || !nextPageBtn) return;
+
+  if (totalIncidents === 0) {
+    pageInfoSpan.textContent = ""; // Or "Aucun incident"
+    prevPageBtn.disabled = true;
+    nextPageBtn.disabled = true;
+    // Hide pagination controls entirely if no items
+    const paginationControls = document.getElementById('incidents-pagination-controls');
+    if (paginationControls) paginationControls.style.display = 'none';
+    return;
+  }
+
+  // Ensure pagination controls are visible if there are items
+  const paginationControls = document.getElementById('incidents-pagination-controls');
+  if (paginationControls) paginationControls.style.display = 'flex';
+
+
+  const totalPages = Math.ceil(totalIncidents / incidentsPerPage);
+  pageInfoSpan.textContent = `Page ${currentIncidentsPage} sur ${totalPages}`;
+
+  prevPageBtn.disabled = currentIncidentsPage <= 1;
+  nextPageBtn.disabled = currentIncidentsPage >= totalPages;
+}
+
+
+async function loadIncidentsList(pageNumber = 1, filters = currentIncidentFilters) {
+  const container = document.getElementById('incidents-list');
+  if (!container) return;
+
+  container.innerHTML = '<div class="loading-message">Chargement des incidents...</div>';
+  currentIncidentsPage = pageNumber;
+  currentIncidentFilters = filters; // Update global filters
+
+  const skip = (pageNumber - 1) * incidentsPerPage;
+  const limit = incidentsPerPage;
+
+  const queryParams = new URLSearchParams({
+    skip: skip,
+    limit: limit,
+  });
+
+  if (filters.status && filters.status !== 'all') {
+    queryParams.append('status', filters.status);
+  }
+  if (filters.criticite && filters.criticite !== 'all') {
+    queryParams.append('criticite', filters.criticite);
+  }
+
+  try {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/v1/incidents/?${queryParams.toString()}`, { headers });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken();
+        showLoginView();
+        throw new Error("Session expirée ou invalide. Veuillez vous reconnecter.");
+      }
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json(); // schemas.IncidentList { items: [], total: 0 }
+    allIncidentsData = data.items; // Store current page's items
+    totalIncidents = data.total;   // Store total for pagination
+
+    container.innerHTML = ''; // Clear loading message
+
+    if (allIncidentsData.length === 0) {
+      container.innerHTML = '<div class="empty-message">Aucun incident à afficher.</div>';
+    } else {
+      allIncidentsData.forEach(incident => {
+        const incidentDiv = document.createElement('div');
+        incidentDiv.className = 'incident-row';
+        // ... (rest of the incident row creation logic remains the same)
+
+    const criticiteClass = incident.criticite.toLowerCase().replace('é', 'e');
+    const statutClass = incident.statut.toLowerCase().replace(' ', '-');
+
+    incidentDiv.innerHTML = `
+      <div class="col-id">#${incident.id}</div>
+      <div class="col-title">
+        <div class="incident-title">${incident.title}</div>
+        <div style="font-size: 12px; color: var(--color-text-secondary);">${incident.type} - ${incident.source}</div>
+      </div>
+      <div class="col-criticite">
+        <span class="criticite-badge ${criticiteClass}">${incident.criticite}</span>
+      </div>
+      <div class="col-statut">
+        <span class="statut-badge ${statutClass}">${incident.statut}</span>
+      </div>
+      <div class="col-date">${incident.timestamp}</div>
+      <div class="col-actions">
+        <div class="incident-actions">
+          <button class="action-btn view-btn" data-incident-id="${incident.id}">Voir</button>
+          <button class="action-btn edit-btn" data-incident-id="${incident.id}">Modifier</button>
+          <button class="action-btn delete-btn" data-incident-id="${incident.id}">Supprimer</button>
+        </div>
+      </div>
+    `;
+    // TODO: Add styling for .view-btn, .edit-btn, .delete-btn (e.g., different colors) if desired
+    // For now, they use the generic .action-btn style.
+    container.appendChild(incidentDiv);
+      });
+    }
+    updatePaginationUI(); // Call after data is loaded and list is rendered
+
+  } catch (error) {
+    console.error("Erreur lors du chargement des incidents:", error);
+    container.innerHTML = `<div class="error-message">Impossible de charger les incidents: ${error.message}. Assurez-vous que le backend est en cours d'exécution.</div>`;
+    updatePaginationUI(); // Also update (e.g., disable buttons) on error
+  }
+}
+
 
 async function handleRegistrationSubmit(event) {
   event.preventDefault();
@@ -860,61 +1016,60 @@ function loadPageData(pageName) {
   }
 }
 
-async function loadIncidentsList(incidentsToDisplay = null) {
+async function loadIncidentsList(pageNumber = 1, filters = currentIncidentFilters) {
   const container = document.getElementById('incidents-list');
   if (!container) return;
   
-  container.innerHTML = '<div class="loading-message">Chargement des incidents...</div>'; // Show loading message
+  container.innerHTML = '<div class="loading-message">Chargement des incidents...</div>';
+  currentIncidentsPage = pageNumber;
+  currentIncidentFilters = filters; // Update global filters
 
-  let incidentsToShow;
+  const skip = (pageNumber - 1) * incidentsPerPage;
+  const limit = incidentsPerPage;
 
-  if (incidentsToDisplay) {
-    incidentsToShow = incidentsToDisplay;
-  } else {
-    try {
-      const token = getToken();
-      const headers = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+  const queryParams = new URLSearchParams({
+    skip: skip,
+    limit: limit,
+  });
 
-      // Fetch initial data from the backend API
-      // Assuming default pagination (skip=0, limit=100) is acceptable for now
-      // For more robust pagination, pass skip/limit from UI state
-      const response = await fetch('/api/v1/incidents/?limit=100', { headers }); // Fetch up to 100 incidents
-      if (!response.ok) {
-        if (response.status === 401) { // Unauthorized
-          clearToken(); // Clear invalid token
-          showLoginView(); // Redirect to login
-          throw new Error("Session expirée ou invalide. Veuillez vous reconnecter.");
-        }
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      const data = await response.json(); // This should be schemas.IncidentList
-      allIncidentsData = data.items; // Store for client-side filtering
-      incidentsToShow = allIncidentsData;
+  if (filters.status && filters.status !== 'all') {
+    queryParams.append('status', filters.status);
+  }
+  if (filters.criticite && filters.criticite !== 'all') {
+    queryParams.append('criticite', filters.criticite);
+  }
 
-      if (data.items.length === 0) {
-        container.innerHTML = '<div class="empty-message">Aucun incident à afficher.</div>';
-        return;
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des incidents:", error);
-      container.innerHTML = `<div class="error-message">Impossible de charger les incidents: ${error.message}. Assurez-vous que le backend est en cours d'exécution.</div>`;
-      return;
+  try {
+    const token = getToken();
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
-  }
-  
-  container.innerHTML = ''; // Clear loading/error message if data is fetched
 
-  if (!incidentsToShow || incidentsToShow.length === 0) {
-    container.innerHTML = '<div class="empty-message">Aucun incident à afficher (après filtrage ou chargement).</div>';
-    return;
-  }
+    const response = await fetch(`/api/v1/incidents/?${queryParams.toString()}`, { headers });
 
-  incidentsToShow.forEach(incident => {
-    const incidentDiv = document.createElement('div');
-    incidentDiv.className = 'incident-row';
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken();
+        showLoginView();
+        throw new Error("Session expirée ou invalide. Veuillez vous reconnecter.");
+      }
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json(); // schemas.IncidentList { items: [], total: 0 }
+    allIncidentsData = data.items; // Store current page's items
+    totalIncidents = data.total;   // Store total for pagination
+
+    container.innerHTML = ''; // Clear loading message
+
+    if (allIncidentsData.length === 0) {
+      container.innerHTML = '<div class="empty-message">Aucun incident à afficher.</div>';
+    } else {
+      allIncidentsData.forEach(incident => {
+        const incidentDiv = document.createElement('div');
+        incidentDiv.className = 'incident-row';
+        // ... (rest of the incident row creation logic remains the same)
     
     const criticiteClass = incident.criticite.toLowerCase().replace('é', 'e');
     const statutClass = incident.statut.toLowerCase().replace(' ', '-');
@@ -1336,29 +1491,13 @@ function filterIncidents() {
   const statusValue = statusFilter.value;
   const criticiteValue = criticiteFilter.value;
   
-  // Filter the allIncidentsData array fetched from the API
-  const locallyFilteredIncidents = allIncidentsData.filter(incident => {
-    let statusMatch = true;
-    let criticiteMatch = true;
-    
-    if (statusValue && statusValue !== 'all') {
-      // Ensure incident.statut is defined and handle potential case differences
-      const incidentStatus = incident.statut ? incident.statut.toLowerCase().replace(' ', '-') : '';
-      statusMatch = incidentStatus === statusValue;
-    }
-    
-    if (criticiteValue && criticiteValue !== 'all') {
-      // Ensure incident.criticite is defined and handle potential case/accent differences
-      const incidentCriticite = incident.criticite ? incident.criticite.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : ''; // Handles accents like 'é' -> 'e'
-      criticiteMatch = incidentCriticite === criticiteValue;
-    }
-    
-    return statusMatch && criticiteMatch;
-  });
-  
-  // Recharger la liste avec les incidents filtrés
-  // loadIncidentsList will now take the array of incidents to display
-  loadIncidentsList(locallyFilteredIncidents);
+  const newFilters = {
+    status: statusValue !== 'all' ? statusValue : null,
+    criticite: criticiteValue !== 'all' ? criticiteValue : null,
+  };
+
+  // Call loadIncidentsList with the new filters, resetting to page 1
+  loadIncidentsList(1, newFilters);
 }
 
 // Mises à jour en temps réel

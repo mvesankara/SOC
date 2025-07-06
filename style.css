@@ -1527,3 +1527,29 @@ select.form-control {
    width: 18px; /* Adjust as needed */
    height: 18px; /* Adjust as needed */
 }
+
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-16) 0; /* Add some padding above/below */
+  margin-top: var(--space-16); /* Add margin above the controls, separating from table */
+  gap: var(--space-12);
+  border-top: 1px solid var(--color-border); /* Optional: line separator */
+}
+
+.pagination-controls .btn[disabled] {
+  /* Styling for disabled pagination buttons is already covered by general .btn:disabled */
+  /* but we can add specifics if needed, e.g., more pronounced disabled look */
+  /* For example:
+  background-color: var(--color-secondary-active);
+  opacity: 0.7;
+  */
+}
+
+#page-info {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0 var(--space-8); /* Add some horizontal margin around page info */
+}
