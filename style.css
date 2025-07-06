@@ -1446,6 +1446,68 @@ select.form-control {
     text-align: center;
 }
 
+/* Registration View Styles */
+/* Mirroring login-container and login-box styles */
+.registration-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--color-background);
+  padding: var(--space-20);
+}
+
+.registration-box {
+  width: 100%;
+  max-width: 400px;
+  /* .card styles apply */
+}
+
+.registration-box .card__header h2 {
+  font-size: var(--font-size-2xl);
+  color: var(--color-text);
+  text-align: center;
+  width: 100%;
+}
+
+.registration-box .form-control {
+  margin-bottom: var(--space-12);
+}
+
+.registration-box .btn--full-width {
+  margin-top: var(--space-16);
+}
+
+.registration-box .error-message {
+  text-align: center;
+}
+
+/* Footer links for login/registration pages */
+.login-footer-links,
+.registration-footer-links {
+  text-align: center;
+  margin-top: var(--space-20);
+  font-size: var(--font-size-sm);
+}
+
+.login-footer-links p,
+.registration-footer-links p {
+  margin-bottom: 0;
+  color: var(--color-text-secondary);
+}
+
+.login-footer-links a,
+.registration-footer-links a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.login-footer-links a:hover,
+.registration-footer-links a:hover {
+  color: var(--color-primary-hover);
+}
+
+
 /* Sidebar Footer for Logout Button */
 .sidebar-footer {
   padding: var(--space-16) var(--space-20);

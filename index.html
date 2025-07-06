@@ -27,6 +27,42 @@
                     <div id="login-error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
                     <button type="submit" class="btn btn--primary btn--full-width">Se Connecter</button>
                 </form>
+                <div class="login-footer-links">
+                    <p>Pas encore de compte ? <a href="#" id="show-register-link">S'inscrire</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="registration-view" class="registration-container" style="display: none;"> <!-- Initially hidden -->
+        <div class="registration-box card">
+            <div class="card__header">
+                <h2>Créer un Compte SOCaaS</h2>
+            </div>
+            <div class="card__body">
+                <form id="registration-form">
+                    <div class="form-group">
+                        <label for="reg-username" class="form-label">Nom d'utilisateur</label>
+                        <input type="text" id="reg-username" name="username" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email" class="form-label">Email (Optionnel)</label>
+                        <input type="email" id="reg-email" name="email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password" class="form-label">Mot de passe</label>
+                        <input type="password" id="reg-password" name="password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-confirm-password" class="form-label">Confirmer le mot de passe</label>
+                        <input type="password" id="reg-confirm-password" name="confirm_password" class="form-control" required>
+                    </div>
+                    <div id="registration-error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+                    <button type="submit" class="btn btn--primary btn--full-width">S'inscrire</button>
+                </form>
+                <div class="registration-footer-links">
+                    <p>Déjà un compte ? <a href="#" id="show-login-link">Se connecter</a></p>
+                </div>
             </div>
         </div>
     </div>
