@@ -34,13 +34,19 @@ async def create_new_incident(
 async def read_all_incidents(
     skip: int = Query(0, ge=0, description="Number of records to skip for pagination"),
     limit: int = Query(100, ge=1, le=200, description="Maximum number of records to return"),
+    status: Optional[str] = Query(None, description="Filter by incident status (e.g., Ouvert, Résolu)"),
+    criticite: Optional[str] = Query(None, description="Filter by incident criticité (e.g., Critique, Moyen)"),
     current_user: Annotated[models.User, Depends(get_current_active_user)]
 ):
     """
-    Retrieve all incidents with pagination. Requires authentication.
+    Retrieve all incidents with pagination and optional filtering by status and criticité. Requires authentication.
     """
-    incidents_records = await crud_incidents.get_incidents(skip=skip, limit=limit)
-    total_incidents = await crud_incidents.count_incidents()
+    incidents_records = await crud_incidents.get_incidents(
+        skip=skip, limit=limit, status=status, criticite=criticite
+    )
+    total_incidents = await crud_incidents.count_incidents(
+        status=status, criticite=criticite
+    )
 
     # Convert each record (which are SQLAlchemy RowProxy objects from 'databases')
     # to schemas.IncidentRead if needed, though Pydantic's from_attributes should handle it.

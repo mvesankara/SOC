@@ -46,11 +46,47 @@ async def get_incidents(skip: int = 0, limit: int = 100) -> List[models.Incident
     results = await database.fetch_all(query)
     return results
 
-async def count_incidents() -> int:
+async def get_incidents(
+    skip: int = 0,
+    limit: int = 100,
+    status: Optional[str] = None,
+    criticite: Optional[str] = None
+) -> List[models.Incident]:
     """
-    Counts the total number of incidents.
+    Retrieves a list of incidents with pagination and optional filtering.
+    """
+    query = select(models.Incident.__table__)
+
+    # Apply filters dynamically
+    if status:
+        # Assuming status in the DB matches StatutIncident enum values directly
+        # Or convert/validate status string against models.StatutIncident if needed
+        query = query.where(models.Incident.__table__.c.statut == status)
+    if criticite:
+        # Assuming criticite in the DB matches CriticiteLevel enum values directly
+        query = query.where(models.Incident.__table__.c.criticite == criticite)
+
+    query = query.offset(skip).limit(limit).order_by(models.Incident.__table__.c.id.desc())
+
+    results = await database.fetch_all(query)
+    return results
+
+
+async def count_incidents(
+    status: Optional[str] = None,
+    criticite: Optional[str] = None
+) -> int:
+    """
+    Counts the total number of incidents, optionally applying filters.
     """
     query = select(func.count()).select_from(models.Incident.__table__)
+
+    # Apply filters dynamically, same as in get_incidents
+    if status:
+        query = query.where(models.Incident.__table__.c.statut == status)
+    if criticite:
+        query = query.where(models.Incident.__table__.c.criticite == criticite)
+
     count = await database.fetch_val(query)
     return count if count is not None else 0
 
