@@ -74,3 +74,27 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
     # You can add other fields here like user_id, roles, etc.
+
+# --- Dashboard Schemas ---
+
+class ThreatActivityTrend(BaseModel):
+    labels: List[str]
+    data: List[int]
+
+class DashboardStats(BaseModel):
+    open_incidents: int
+    closed_incidents_last_24h: int
+    new_incidents_last_24h: int
+    critical_open_incidents: int
+    resolved_incident_percentage: float
+    threat_activity_trend: ThreatActivityTrend
+    sla_compliance_percentage: str  # Keeping as str for "N/A"
+    avg_response_time_minutes: str  # Keeping as str for "N/A"
+
+class SystemStatus(BaseModel):
+    name: str
+    status: str # e.g., "Online", "Warning", "Offline"
+    cpu: Optional[str] = None
+    memory: Optional[str] = None
+    monitored: Optional[int] = None # For Endpoints system type
+    issues: Optional[int] = None    # For Endpoints system type

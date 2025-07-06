@@ -11,7 +11,8 @@ Base.metadata.create_all(bind=engine)
 
 # Import the API router
 from .api.endpoints import router as incidents_api_router # Renamed for clarity
-from .api.auth import router as auth_api_router # Import the new auth router
+from .api.auth import router as auth_api_router
+from .api.dashboard import router as dashboard_api_router # Import the new dashboard router
 
 
 @asynccontextmanager
@@ -43,6 +44,7 @@ async def health_check():
 # Include the API routers
 app.include_router(incidents_api_router, prefix="/api/v1/incidents", tags=["Incidents"])
 app.include_router(auth_api_router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(dashboard_api_router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 
 
 @app.get("/test-db")
