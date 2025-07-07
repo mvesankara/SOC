@@ -966,32 +966,160 @@ function loadSystemsStatus() {
   const container = document.getElementById('systems-status');
   if (!container) return;
   
-  container.innerHTML = '';
-  
-  mockData.systems.forEach(system => {
-    const systemDiv = document.createElement('div');
-    systemDiv.className = 'system-item';
-    
-    const statusClass = system.status.toLowerCase();
-    const statusText = system.status === 'Online' ? 'En ligne' : 
-                      system.status === 'Warning' ? 'Attention' : 'Hors ligne';
-    
-    systemDiv.innerHTML = `
-      <div class="system-info">
-        <div class="system-name">${system.name}</div>
-        <div class="system-stats">
-          ${system.cpu ? `CPU: ${system.cpu}` : ''}
-          ${system.memory ? ` | RAM: ${system.memory}` : ''}
-          ${system.monitored ? `${system.monitored} endpoints surveillés` : ''}
-          ${system.issues ? ` | ${system.issues} problèmes` : ''}
+  container.innerHTML = '<div class="loading-message">Chargement état des systèmes...</div>';
+
+  try {
+    const token = getToken();
+    if (!token) {
+      // This part of the dashboard shouldn't ideally be reached if not authenticated
+      // but as a safeguard:
+      container.innerHTML = '<div class="error-message">Authentification requise.</div>';
+      return;
+    }
+
+    const response = await fetch('/api/v1/systems/', { // Using the CRUD API for systems
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); showLoginView();
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const systems = await response.json(); // Expects a List[schemas.SystemRead]
+    container.innerHTML = ''; // Clear loading message
+
+    if (!systems || systems.length === 0) {
+      container.innerHTML = '<div class="empty-message">Aucun système à afficher.</div>';
+      return;
+    }
+
+    systems.forEach(system => {
+      const systemDiv = document.createElement('div');
+      systemDiv.className = 'system-item';
+
+      // Map status from SystemStateType enum to CSS class and display text
+      let statusClass = 'offline'; // Default
+      let statusText = 'Hors ligne';
+      if (system.status === SystemStateType.ONLINE) {
+        statusClass = 'online';
+        statusText = 'En ligne';
+      } else if (system.status === SystemStateType.WARNING) {
+        statusClass = 'warning';
+        statusText = 'Attention';
+      }
+      // OFFLINE is already default
+
+      let statsHtml = [];
+      if (system.cpu_usage_percent !== null) { // Check for null explicitly for numbers
+        statsHtml.push(`CPU: ${system.cpu_usage_percent}%`);
+      }
+      if (system.memory_usage_percent !== null) {
+         statsHtml.push(`RAM: ${system.memory_usage_percent}%`);
+      }
+      if (system.name === "Endpoints" && system.monitored_endpoints_count !== null) { // Example specific logic
+         statsHtml.push(`${system.monitored_endpoints_count} endpoints surveillés`);
+         if (system.endpoint_issues_count !== null && system.endpoint_issues_count > 0) {
+            statsHtml.push(`${system.endpoint_issues_count} problèmes`);
+         }
+      }
+
+      systemDiv.innerHTML = `
+        <div class="system-info">
+          <div class="system-name">${system.name}</div>
+          <div class="system-stats">${statsHtml.join(' | ')}</div>
         </div>
-      </div>
-      <div class="system-status ${statusClass}">${statusText}</div>
-    `;
-    
-    container.appendChild(systemDiv);
-  });
+        <div class="system-status ${statusClass}">${statusText}</div>
+      `;
+      container.appendChild(systemDiv);
+    });
+
+  } catch (error) {
+    console.error("Erreur lors du chargement de l'état des systèmes:", error);
+    container.innerHTML = `<div class="error-message">Impossible de charger l'état des systèmes: ${error.message}</div>`;
+  }
 }
+
+// Make loadSystemsStatus async as it now contains fetch
+async function loadSystemsStatus() { // Signature changed to async
+  const container = document.getElementById('systems-status');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading-message">Chargement état des systèmes...</div>';
+
+  try {
+    const token = getToken();
+    if (!token) {
+      container.innerHTML = '<div class="error-message">Authentification requise.</div>';
+      return;
+    }
+
+    // Using /api/v1/dashboard/systems-status as it's designed for this display
+    // and currently returns the static mock-like data structure.
+    // If we want to list systems from the `systems` table, we'd use GET /api/v1/systems/
+    // For now, let's assume the dashboard/systems-status is what we want for this specific UI element.
+    const response = await fetch('/api/v1/dashboard/systems-status', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); showLoginView();
+        // Error will be caught by the main catch block below
+        throw new Error("Session expirée. Veuillez vous reconnecter pour voir l'état des systèmes.");
+      }
+      throw new Error(`Erreur HTTP: ${response.status} lors de la récupération de l'état des systèmes.`);
+    }
+
+    const systemsData = await response.json(); // Expects List[schemas.SystemStatus]
+                                           // which matches the structure of mockData.systems
+    container.innerHTML = ''; // Clear loading message
+
+    if (!systemsData || systemsData.length === 0) {
+      container.innerHTML = '<div class="empty-message">Aucun système à afficher.</div>';
+      return;
+    }
+
+    systemsData.forEach(system => {
+      const systemDiv = document.createElement('div');
+      systemDiv.className = 'system-item';
+
+      // system.status from API should directly match "Online", "Warning", "Offline"
+      const statusClass = system.status ? system.status.toLowerCase() : 'offline';
+      let statusText = 'Hors ligne';
+      if (system.status === 'Online') statusText = 'En ligne';
+      else if (system.status === 'Warning') statusText = 'Attention';
+
+      // Build stats string carefully based on what SystemStatus schema provides
+      // The SystemStatus schema has: name, status, cpu, memory, monitored, issues
+      // These match the old mockData structure.
+      let statsArray = [];
+      if (system.cpu) statsArray.push(`CPU: ${system.cpu}`);
+      if (system.memory) statsArray.push(`RAM: ${system.memory}`);
+      if (system.monitored !== undefined) statsArray.push(`${system.monitored} endpoints surveillés`);
+      if (system.issues !== undefined && system.issues > 0) statsArray.push(`${system.issues} problèmes`);
+
+      systemDiv.innerHTML = `
+        <div class="system-info">
+          <div class="system-name">${system.name}</div>
+          <div class="system-stats">${statsArray.join(' | ')}</div>
+        </div>
+        <div class="system-status ${statusClass}">${statusText}</div>
+      `;
+      container.appendChild(systemDiv);
+    });
+
+  } catch (error) {
+    console.error("Erreur lors du chargement de l'état des systèmes:", error);
+    if (container) { // Ensure container still exists
+        container.innerHTML = `<div class="error-message">Impossible de charger l'état des systèmes: ${error.message}</div>`;
+    }
+  }
+}
+
 
 function loadPageData(pageName) {
   switch(pageName) {
