@@ -50,23 +50,39 @@ async def get_incidents(
     skip: int = 0,
     limit: int = 100,
     status: Optional[str] = None,
-    criticite: Optional[str] = None
+    criticite: Optional[str] = None,
+    sort_by: Optional[str] = None # e.g., "timestamp:desc", "title:asc"
 ) -> List[models.Incident]:
     """
-    Retrieves a list of incidents with pagination and optional filtering.
+    Retrieves a list of incidents with pagination, optional filtering, and sorting.
     """
     query = select(models.Incident.__table__)
 
     # Apply filters dynamically
     if status:
-        # Assuming status in the DB matches StatutIncident enum values directly
-        # Or convert/validate status string against models.StatutIncident if needed
         query = query.where(models.Incident.__table__.c.statut == status)
     if criticite:
-        # Assuming criticite in the DB matches CriticiteLevel enum values directly
         query = query.where(models.Incident.__table__.c.criticite == criticite)
 
-    query = query.offset(skip).limit(limit).order_by(models.Incident.__table__.c.id.desc())
+    # Apply sorting
+    if sort_by:
+        try:
+            field_name, direction = sort_by.split(':')
+            column_to_sort = getattr(models.Incident.__table__.c, field_name)
+            if direction.lower() == 'desc':
+                query = query.order_by(column_to_sort.desc())
+            elif direction.lower() == 'asc':
+                query = query.order_by(column_to_sort.asc())
+            else: # Default to ID descending if direction is invalid or sort field is valid
+                query = query.order_by(models.Incident.__table__.c.id.desc())
+        except (ValueError, AttributeError): # Invalid sort_by format or field name
+            # Default to ID descending if sort_by is malformed
+            query = query.order_by(models.Incident.__table__.c.id.desc())
+    else:
+        # Default sort order if no sort_by is provided
+        query = query.order_by(models.Incident.__table__.c.id.desc())
+
+    query = query.offset(skip).limit(limit)
 
     results = await database.fetch_all(query)
     return results

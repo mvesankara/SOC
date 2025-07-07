@@ -169,7 +169,7 @@ async function handleLoginSubmit(event) {
 
     storeToken(data.access_token);
     showAppLayout(); // Show main app, hide login
-    loadDashboardData(); // Load initial data for the dashboard
+    await loadDashboardData(); // Await dashboard data loading
     startRealTimeUpdates(); // Start updates now that user is logged in
     updateLastUpdateTime(); // Update time display
 
@@ -284,7 +284,7 @@ async function checkAuthStatus() {
         await response.json();
         console.log("Utilisateur authentifié via token existant.");
         showAppLayout();
-        loadDashboardData(); // Load initial data for the dashboard
+        await loadDashboardData(); // Await dashboard data loading
         startRealTimeUpdates();
         updateLastUpdateTime();
       } else {
@@ -911,34 +911,86 @@ function switchPage(pageName) {
 }
 
 // Chargement des données
-function loadDashboardData() {
-  // Métriques principales
-  const elements = {
-    'incidents-ouverts': mockData.metriques.incidents_ouverts,
-    'incidents-fermes': mockData.metriques.incidents_fermes,
-    'menaces-detectees': mockData.metriques.menaces_detectees,
-    'sla-respecte': mockData.metriques.sla_respecte,
-    'temps-reponse': mockData.metriques.temps_reponse_moyen
-  };
-  
-  Object.keys(elements).forEach(id => {
+async function loadDashboardData() {
+  // Helper to update text content of an element
+  const updateElementText = (id, text) => {
     const element = document.getElementById(id);
-    if (element) {
-      element.textContent = elements[id];
+    if (element) element.textContent = text;
+    else console.warn(`Element with ID '${id}' not found for dashboard metrics.`);
+  };
+
+  // Set loading text for metrics
+  updateElementText('incidents-ouverts', '...');
+  updateElementText('incidents-fermes', '...');
+  updateElementText('menaces-detectees', '...');
+  updateElementText('sla-respecte', '...');
+  updateElementText('temps-reponse', '...'); // This is for the "Performances SOC" card
+
+  try {
+    const token = getToken();
+    if (!token) {
+      // Should be handled by checkAuthStatus, but as a safeguard
+      console.warn("loadDashboardData called without authentication token.");
+      showLoginView();
+      return;
     }
-  });
-  
-  // Alertes récentes
-  loadRecentAlerts();
-  
-  // État des systèmes
-  loadSystemsStatus();
-  
-  // Graphique des tendances (avec délai pour s'assurer que le canvas est visible)
-  setTimeout(() => {
-    createThreatsChart();
-  }, 100);
+
+    const response = await fetch('/api/v1/dashboard/stats', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearToken(); showLoginView();
+        throw new Error("Session expirée. Veuillez vous reconnecter.");
+      }
+      throw new Error(`Erreur HTTP ${response.status} lors de la récupération des stats du dashboard.`);
+    }
+
+    const stats = await response.json(); // schemas.DashboardStats
+
+    // Update Metric Cards
+    updateElementText('incidents-ouverts', stats.open_incidents);
+    // Mapping "Incidents Fermés" to "closed_incidents_last_24h" for now
+    updateElementText('incidents-fermes', stats.closed_incidents_last_24h);
+    // Mapping "Menaces Détectées" to "new_incidents_last_24h"
+    updateElementText('menaces-detectees', stats.new_incidents_last_24h);
+    updateElementText('sla-respecte', stats.sla_compliance_percentage); // Will be "N/A"
+
+    // Update "Performances SOC" card
+    updateElementText('temps-reponse', stats.avg_response_time_minutes); // Will be "N/A"
+    // Other perf metrics like "Disponibilité" and "Incidents Résolus" are static in HTML for now
+    // We have stats.resolved_incident_percentage we could use for "Incidents Résolus"
+    const resolvedPercentageElem = document.querySelector('.performance-metrics .perf-metric:nth-child(3) .value');
+    if (resolvedPercentageElem) {
+        resolvedPercentageElem.textContent = `${stats.resolved_incident_percentage}%`;
+    }
+
+
+    // Call other dashboard loading functions (some might become async or use parts of 'stats')
+    loadRecentAlerts(); // Still uses mockData, will need update
+    await loadSystemsStatus(); // Already updated to be async and use API
+
+    // Pass trend data to chart creation function
+    if (stats.threat_activity_trend) {
+      setTimeout(() => { // Keep timeout for canvas visibility
+        createThreatsChart(stats.threat_activity_trend);
+      }, 100);
+    } else {
+        // Handle case where trend data might be missing
+        setTimeout(() => { createThreatsChart(); }, 100); // Call with no data or default
+    }
+
+  } catch (error) {
+    console.error("Erreur lors du chargement des données du dashboard:", error);
+    // Display a general error on the dashboard or specific metric fields
+    updateElementText('incidents-ouverts', 'Erreur');
+    updateElementText('incidents-fermes', 'Erreur');
+    updateElementText('menaces-detectees', 'Erreur');
+    // Potentially show a more prominent error message on the dashboard page itself
+  }
 }
+
 
 function loadRecentAlerts() {
   const container = document.getElementById('recent-alerts');
