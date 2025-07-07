@@ -7,6 +7,11 @@ import enum
 # Using declarative_base from sqlalchemy.ext.declarative
 Base = declarative_base(metadata=metadata)
 
+class SystemStateType(str, enum.Enum):
+    ONLINE = "Online"
+    WARNING = "Warning"
+    OFFLINE = "Offline"
+
 class CriticiteLevel(str, enum.Enum):
     CRITIQUE = "Critique"
     ELEVE = "Élevé"
@@ -47,6 +52,22 @@ class User(Base):
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', is_active={self.is_active})>"
+
+
+class System(Base):
+    __tablename__ = "systems"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    status = Column(SAEnum(SystemStateType), nullable=False, default=SystemStateType.OFFLINE, index=True)
+    cpu_usage_percent = Column(Float, nullable=True)
+    memory_usage_percent = Column(Float, nullable=True)
+    monitored_endpoints_count = Column(Integer, nullable=True) # Specific to 'Endpoints' system type
+    endpoint_issues_count = Column(Integer, nullable=True)   # Specific to 'Endpoints' system type
+    last_checked_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f"<System(id={self.id}, name='{self.name}', status='{self.status}')>"
 
 
 # You can add other models here as the application grows.

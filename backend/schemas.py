@@ -98,3 +98,32 @@ class SystemStatus(BaseModel):
     memory: Optional[str] = None
     monitored: Optional[int] = None # For Endpoints system type
     issues: Optional[int] = None    # For Endpoints system type
+
+# --- System Schemas ---
+from .models import SystemStateType # Import the enum
+
+class SystemBase(BaseModel):
+    name: str
+    status: SystemStateType
+    cpu_usage_percent: Optional[float] = None
+    memory_usage_percent: Optional[float] = None
+    monitored_endpoints_count: Optional[int] = None
+    endpoint_issues_count: Optional[int] = None
+
+class SystemCreate(SystemBase):
+    pass # All fields from SystemBase are needed for creation, last_checked_at is auto
+
+class SystemUpdate(BaseModel): # Allow partial updates
+    name: Optional[str] = None
+    status: Optional[SystemStateType] = None
+    cpu_usage_percent: Optional[float] = None
+    memory_usage_percent: Optional[float] = None
+    monitored_endpoints_count: Optional[int] = None
+    endpoint_issues_count: Optional[int] = None
+    # last_checked_at will be updated automatically by the model's onupdate
+
+class SystemRead(SystemBase):
+    id: int
+    last_checked_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
