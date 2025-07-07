@@ -1,48 +1,5 @@
 // Application SOCaaS - JavaScript principal (corrigé)
 
-// Données simulées (basées sur les données fournies)
-const mockData = {
-  incidents: [
-    {id: 1, title: "Activité suspecte détectée", criticite: "Critique", statut: "Ouvert", timestamp: "2025-06-16 22:15", type: "Malware", source: "Endpoint 192.168.1.45"},
-    {id: 2, title: "Tentative de connexion non autorisée", criticite: "Élevé", statut: "En cours", timestamp: "2025-06-16 21:30", type: "Intrusion", source: "Firewall externe"},
-    {id: 3, title: "Trafic réseau anormal", criticite: "Moyen", statut: "Résolu", timestamp: "2025-06-16 20:45", type: "Anomalie réseau", source: "Switch principal"},
-    {id: 4, title: "Scan de ports détecté", criticite: "Élevé", statut: "Ouvert", timestamp: "2025-06-16 19:22", type: "Reconnaissance", source: "Externe 203.0.113.5"},
-    {id: 5, title: "Fichier suspect en quarantaine", criticite: "Critique", statut: "En cours", timestamp: "2025-06-16 18:45", type: "Malware", source: "Endpoint 192.168.1.102"}
-  ],
-  metriques: {
-    incidents_ouverts: 15,
-    incidents_fermes: 142,
-    menaces_detectees: 8,
-    sla_respecte: "98.5%",
-    temps_reponse_moyen: "4.2 min"
-  },
-  threats: [
-    {type: "Phishing", count: 25, trend: "up"},
-    {type: "Malware", count: 18, trend: "down"},
-    {type: "Ransomware", count: 3, trend: "stable"},
-    {type: "DDoS", count: 7, trend: "up"}
-  ],
-  systems: [
-    {name: "Firewall Principal", status: "Online", cpu: "45%", memory: "62%"},
-    {name: "SIEM", status: "Online", cpu: "78%", memory: "71%"},
-    {name: "IDS/IPS", status: "Warning", cpu: "89%", memory: "82%"},
-    {name: "Endpoints", status: "Online", monitored: 1247, issues: 3}
-  ],
-  securityEvents: [
-    {timestamp: "22:38:15", message: "Connexion SSH réussie depuis 192.168.1.10", severity: "info"},
-    {timestamp: "22:37:42", message: "Tentative de connexion échouée sur admin@mail.example.com", severity: "warning"},
-    {timestamp: "22:36:28", message: "Mise à jour de signature antivirus terminée", severity: "info"},
-    {timestamp: "22:35:15", message: "Détection d'activité suspecte sur endpoint-047", severity: "critical"},
-    {timestamp: "22:34:03", message: "Sauvegarde des logs complétée avec succès", severity: "info"}
-  ],
-  iocList: [
-    {type: "IP", value: "203.0.113.50", threat: "Botnet C&C", confidence: "High"},
-    {type: "Domain", value: "malicious-site.example", threat: "Phishing", confidence: "Medium"},
-    {type: "Hash", value: "d41d8cd98f00b204e9800998ecf8427e", threat: "Malware", confidence: "High"},
-    {type: "URL", value: "http://suspicious-link.example/payload", threat: "Exploit Kit", confidence: "Low"}
-  ]
-};
-
 // Variables globales
 let currentPage = 'dashboard';
 let charts = {};
@@ -1514,24 +1471,23 @@ function createNetworkChart() {
   const canvas = document.getElementById('networkChart');
   if (!canvas || !canvas.getContext) return;
   
-  // Détruire le graphique existant s'il existe
   if (charts.network) {
     charts.network.destroy();
   }
-  
   const ctx = canvas.getContext('2d');
   
+  // Placeholder data as API is not available
   const data = {
     labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
     datasets: [{
       label: 'Trafic Entrant (Mbps)',
-      data: [45, 23, 78, 92, 156, 134, 89],
+      data: [0,0,0,0,0,0,0], // Placeholder
       borderColor: '#10b981',
       backgroundColor: 'rgba(16, 185, 129, 0.1)',
       tension: 0.4
     }, {
       label: 'Trafic Sortant (Mbps)',
-      data: [35, 18, 65, 82, 124, 98, 67],
+      data: [0,0,0,0,0,0,0], // Placeholder
       borderColor: '#3b82f6',
       backgroundColor: 'rgba(59, 130, 246, 0.1)',
       tension: 0.4
@@ -1566,7 +1522,8 @@ function createNetworkChart() {
           },
           grid: {
             color: '#334155'
-          }
+          },
+          beginAtZero: true
         }
       }
     }
@@ -1577,22 +1534,21 @@ function createSOCMetricsChart() {
   const canvas = document.getElementById('socMetricsChart');
   if (!canvas || !canvas.getContext) return;
   
-  // Détruire le graphique existant s'il existe
   if (charts.socMetrics) {
     charts.socMetrics.destroy();
   }
-  
   const ctx = canvas.getContext('2d');
   
+  // Placeholder data as API is not available
   const data = {
     labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun'],
     datasets: [{
       label: 'Incidents Résolus (%)',
-      data: [85, 92, 78, 96, 89, 94],
+      data: [0,0,0,0,0,0], // Placeholder
       backgroundColor: '#10b981',
     }, {
       label: 'Temps de Réponse (min)',
-      data: [5.2, 4.8, 6.1, 4.2, 5.5, 4.2],
+      data: [0,0,0,0,0,0], // Placeholder
       backgroundColor: '#3b82f6',
       yAxisID: 'y1'
     }]
@@ -1629,7 +1585,8 @@ function createSOCMetricsChart() {
           },
           grid: {
             color: '#334155'
-          }
+          },
+           beginAtZero: true
         },
         y1: {
           type: 'linear',
@@ -1641,7 +1598,8 @@ function createSOCMetricsChart() {
           grid: {
             drawOnChartArea: false,
             color: '#334155'
-          }
+          },
+          beginAtZero: true
         }
       }
     }
@@ -1676,79 +1634,24 @@ function filterIncidents() {
     criticite: criticiteValue !== 'all' ? criticiteValue : null,
   };
 
-  // Call loadIncidentsList with the new filters, resetting to page 1
   loadIncidentsList(1, newFilters);
 }
 
-// Mises à jour en temps réel
+// Mises à jour en temps réel - These will be placeholders for now
+// as real-time backend functionality (WebSockets, SSE) is not yet implemented.
 function startRealTimeUpdates() {
-  // Simulation de mises à jour toutes les 30 secondes
+  // Placeholder: Refresh dashboard data periodically as a simple form of "real-time"
   setInterval(() => {
-    updateMetrics();
+    if (currentPage === 'dashboard' && getToken()) { // Only if on dashboard and logged in
+      loadDashboardData();
+    }
     updateLastUpdateTime();
-  }, 30000);
-  
-  // Simulation d'événements temps réel toutes les 10 secondes
-  setInterval(() => {
-    addNewSecurityEvent();
-  }, 10000);
+  }, 30000); // e.g., every 30 seconds
+
+  // addNewSecurityEvent is removed as it was purely mock.
+  // updateMetrics is removed as it was purely mock.
 }
 
-function updateMetrics() {
-  // Simulation de changements dans les métriques
-  const variations = {
-    incidents_ouverts: Math.floor(Math.random() * 3) - 1, // -1, 0, ou 1
-    menaces_detectees: Math.floor(Math.random() * 2) // 0 ou 1
-  };
-  
-  mockData.metriques.incidents_ouverts = Math.max(0, mockData.metriques.incidents_ouverts + variations.incidents_ouverts);
-  mockData.metriques.menaces_detectees = Math.max(0, mockData.metriques.menaces_detectees + variations.menaces_detectees);
-  
-  // Mettre à jour l'affichage si on est sur le dashboard
-  if (currentPage === 'dashboard') {
-    const incidentsElement = document.getElementById('incidents-ouverts');
-    const menacesElement = document.getElementById('menaces-detectees');
-    
-    if (incidentsElement) {
-      incidentsElement.textContent = mockData.metriques.incidents_ouverts;
-    }
-    if (menacesElement) {
-      menacesElement.textContent = mockData.metriques.menaces_detectees;
-    }
-  }
-}
-
-function addNewSecurityEvent() {
-  const newEvents = [
-    "Nouvelle connexion VPN détectée",
-    "Mise à jour de signature completée",
-    "Scan de vulnérabilité programmé",
-    "Backup des logs en cours",
-    "Redémarrage du service de monitoring"
-  ];
-  
-  const randomEvent = newEvents[Math.floor(Math.random() * newEvents.length)];
-  const now = new Date();
-  const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-  
-  const newEvent = {
-    timestamp: timestamp,
-    message: randomEvent,
-    severity: "info"
-  };
-  
-  mockData.securityEvents.unshift(newEvent);
-  
-  // Garder seulement les 10 derniers événements
-  if (mockData.securityEvents.length > 10) {
-    mockData.securityEvents.pop();
-  }
-  
-  // Mettre à jour l'affichage si on est sur la page de surveillance
-  if (currentPage === 'monitoring') {
-    loadSecurityEvents();
-  }
-}
 
 function updateLastUpdateTime() {
   const now = new Date();
