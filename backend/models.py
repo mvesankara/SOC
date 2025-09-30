@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, DateTime, Enum as SAEnum, Boolean, Float
 from sqlalchemy.ext.declarative import declarative_base
 from .database import metadata # Using the metadata instance from database.py
 import datetime
@@ -68,6 +68,29 @@ class System(Base):
 
     def __repr__(self):
         return f"<System(id={self.id}, name='{self.name}', status='{self.status}')>"
+
+
+class IoCType(str, enum.Enum):
+    IP_ADDRESS = "ip_address"
+    DOMAIN_NAME = "domain_name"
+    FILE_HASH_MD5 = "md5"
+    FILE_HASH_SHA1 = "sha1"
+    FILE_HASH_SHA256 = "sha256"
+    URL = "url"
+
+class IndicatorOfCompromise(Base):
+    __tablename__ = "iocs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    value = Column(String, index=True, nullable=False, unique=True) # The IoC value itself
+    type = Column(SAEnum(IoCType), nullable=False)
+    source = Column(String, nullable=True) # E.g., MISP, AlienVault OTX, Manual
+    first_seen = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow, nullable=False)
+    malicious_confidence = Column(Integer, nullable=True) # Confidence level (e.g., 0-100)
+
+    def __repr__(self):
+        return f"<IndicatorOfCompromise(id={self.id}, type='{self.type}', value='{self.value}')>"
 
 
 # You can add other models here as the application grows.

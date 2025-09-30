@@ -14,6 +14,7 @@ from .api.endpoints import router as incidents_api_router
 from .api.auth import router as auth_api_router
 from .api.dashboard import router as dashboard_api_router
 from .api.systems import router as systems_api_router # Import the new systems router
+from .api.iocs import router as iocs_api_router
 
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ app.include_router(incidents_api_router, prefix="/api/v1/incidents", tags=["Inci
 app.include_router(auth_api_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(dashboard_api_router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 app.include_router(systems_api_router, prefix="/api/v1/systems", tags=["Systems"])
+app.include_router(iocs_api_router, prefix="/api/v1/iocs", tags=["IoCs"])
 
 
 @app.get("/test-db")

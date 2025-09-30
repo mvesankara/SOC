@@ -25,9 +25,9 @@ async def create_new_system(
 
 @router.get("/", response_model=List[schemas.SystemRead])
 async def read_all_systems(
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100), # Default 20, max 100
-    current_user: Annotated[models.User, Depends(get_current_active_user)]
+    limit: int = Query(20, ge=1, le=100) # Default 20, max 100
 ):
     """
     Retrieve all systems with pagination. Requires authentication.

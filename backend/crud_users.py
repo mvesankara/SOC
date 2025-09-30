@@ -19,6 +19,9 @@ async def create_user(user_data: schemas.UserCreate) -> models.User:
     user_db_values = user_data.model_dump()
     del user_db_values['password'] # Remove plain password
     user_db_values['hashed_password'] = hashed_password
+    # Explicitly set default values to ensure they are present for the INSERT statement
+    user_db_values.setdefault('is_active', True)
+    user_db_values.setdefault('is_superuser', False)
 
     query = models.User.__table__.insert().values(**user_db_values)
 
