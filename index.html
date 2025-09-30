@@ -276,34 +276,34 @@
             <!-- Page Threat Intelligence -->
             <div id="threats" class="page">
                 <div class="page-header">
-                    <h1>Threat Intelligence</h1>
+                    <h1>Indicateurs de Compromission (IoCs)</h1>
+                    <div class="header-actions">
+                        <button class="btn btn--primary btn--sm" id="new-ioc-btn">
+                            <i data-lucide="plus"></i>
+                            Nouvel IoC
+                        </button>
+                    </div>
                 </div>
 
-                <div class="threats-grid">
-                    <div class="card">
-                        <div class="card__header">
-                            <h3>Types de Menaces</h3>
-                        </div>
-                        <div class="card__body">
-                            <canvas id="threatTypesChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card__header">
-                            <h3>Flux de Menaces</h3>
-                        </div>
-                        <div class="card__body">
-                            <div id="threat-feed"></div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card__header">
-                            <h3>Indicateurs de Compromission</h3>
-                        </div>
-                        <div class="card__body">
-                            <div id="ioc-list"></div>
+                <div class="card">
+                    <div class="card__body">
+                        <div class="iocs-table">
+                            <div class="table-header">
+                                <div class="col-id" style="flex-basis: 5%;">ID</div>
+                                <div class="col-ioc-value" style="flex-basis: 40%;">Valeur</div>
+                                <div class="col-ioc-type" style="flex-basis: 15%;">Type</div>
+                                <div class="col-ioc-source" style="flex-basis: 15%;">Source</div>
+                                <div class="col-date" style="flex-basis: 15%;">Dernière vue</div>
+                                <div class="col-actions" style="flex-basis: 10%;">Actions</div>
+                            </div>
+                            <div id="iocs-list">
+                                <!-- IoC rows will be inserted here by JavaScript -->
+                            </div>
+                            <div id="iocs-pagination-controls" class="pagination-controls">
+                                <button id="iocs-prev-page-btn" class="btn btn--secondary btn--sm" disabled>&laquo; Précédent</button>
+                                <span id="iocs-page-info"></span>
+                                <button id="iocs-next-page-btn" class="btn btn--secondary btn--sm" disabled>Suivant &raquo;</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -537,6 +537,39 @@
                     <div class="modal-actions">
                         <button type="button" class="btn btn--secondary" id="edit-modal-cancel-btn">Annuler</button>
                         <button type="submit" class="btn btn--primary">Enregistrer les Modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for New IoC -->
+    <div id="new-ioc-modal" class="modal" style="display: none;">
+        <div class="modal-content card">
+            <div class="modal-header card__header">
+                <h3>Créer un Nouvel Indicateur de Compromission (IoC)</h3>
+                <button class="modal-close-btn" id="ioc-modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body card__body">
+                <form id="new-ioc-form">
+                    <div class="form-group">
+                        <label for="ioc-value" class="form-label">Valeur de l'indicateur</label>
+                        <input type="text" id="ioc-value" name="value" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="ioc-type" class="form-label">Type</label>
+                        <select id="ioc-type" name="type" class="form-control" required>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ioc-source" class="form-label">Source (ex: MISP, Manual)</label>
+                        <input type="text" id="ioc-source" name="source" class="form-control">
+                    </div>
+                    <div id="ioc-modal-error-message" class="error-message" style="display: none; margin-bottom: 16px;"></div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn--secondary" id="ioc-modal-cancel-btn">Annuler</button>
+                        <button type="submit" class="btn btn--primary">Enregistrer</button>
                     </div>
                 </form>
             </div>

@@ -127,3 +127,33 @@ class SystemRead(SystemBase):
     last_checked_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- IoC Schemas ---
+from .models import IoCType
+
+class IoCBase(BaseModel):
+    value: str
+    type: IoCType
+    source: Optional[str] = None
+    malicious_confidence: Optional[int] = None
+
+class IoCCreate(IoCBase):
+    pass
+
+class IoCUpdate(BaseModel):
+    value: Optional[str] = None
+    type: Optional[IoCType] = None
+    source: Optional[str] = None
+    malicious_confidence: Optional[int] = None
+
+class IoCRead(IoCBase):
+    id: int
+    first_seen: datetime
+    last_seen: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class IoCList(BaseModel):
+    items: List[IoCRead]
+    total: int

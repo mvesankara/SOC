@@ -20,11 +20,24 @@ const StatutIncident = {
   FERME: "Fermé"
 };
 
+const IoCType = {
+    IP_ADDRESS: "ip_address",
+    DOMAIN_NAME: "domain_name",
+    FILE_HASH_MD5: "md5",
+    FILE_HASH_SHA1: "sha1",
+    FILE_HASH_SHA256: "sha256",
+    URL: "url"
+};
+
 // Pagination and Filter State
 let currentIncidentsPage = 1;
 const incidentsPerPage = 15; // Or make this configurable
 let totalIncidents = 0;
 let currentIncidentFilters = { status: null, criticite: null };
+
+let currentIocsPage = 1;
+const iocsPerPage = 15;
+let totalIocs = 0;
 
 // DOM Elements for Auth
 const loginView = document.getElementById('login-view');
@@ -288,6 +301,16 @@ const editIncidentSourceInput = document.getElementById('edit-incident-source');
 const editModalErrorMessage = document.getElementById('edit-modal-error-message');
 
 
+// DOM Elements for New IoC Modal
+const newIocModal = document.getElementById('new-ioc-modal');
+const newIocBtn = document.getElementById('new-ioc-btn');
+const iocModalCloseBtn = document.getElementById('ioc-modal-close-btn');
+const iocModalCancelBtn = document.getElementById('ioc-modal-cancel-btn');
+const newIocForm = document.getElementById('new-ioc-form');
+const iocTypeSelect = document.getElementById('ioc-type');
+const iocModalErrorMessage = document.getElementById('ioc-modal-error-message');
+
+
 function populateSelect(selectElement, enumObject,selectedValue = null) {
   if (!selectElement) return;
   // Clear existing options except for a potential placeholder if needed
@@ -540,6 +563,7 @@ function initAuth() {
 
   checkAuthStatus();
   initEditIncidentModalListeners();
+  initNewIocModal(); // Initialize the new IoC modal
 
   // Add event listener for registration form
   if (registrationForm) {
@@ -561,6 +585,39 @@ function initAuth() {
         loadIncidentsList(currentIncidentsPage + 1, currentIncidentFilters);
       }
     });
+  }
+
+  // Add event listeners for IoC pagination buttons
+  const iocsPrevPageBtn = document.getElementById('iocs-prev-page-btn');
+  const iocsNextPageBtn = document.getElementById('iocs-next-page-btn');
+  if (iocsPrevPageBtn) {
+      iocsPrevPageBtn.addEventListener('click', () => {
+          if (currentIocsPage > 1) {
+              loadIocsList(currentIocsPage - 1);
+          }
+      });
+  }
+  if (iocsNextPageBtn) {
+      iocsNextPageBtn.addEventListener('click', () => {
+          const totalPages = Math.ceil(totalIocs / iocsPerPage);
+          if (currentIocsPage < totalPages) {
+              loadIocsList(currentIocsPage + 1);
+          }
+      });
+  }
+
+  // Event delegation for IoC delete buttons
+  const iocsListContainer = document.getElementById('iocs-list');
+  if (iocsListContainer) {
+      iocsListContainer.addEventListener('click', async function(event) {
+          const deleteButton = event.target.closest('.delete-ioc-btn');
+          if (deleteButton) {
+              const iocId = deleteButton.dataset.iocId;
+              if (iocId) {
+                  await handleDeleteIoc(iocId);
+              }
+          }
+      });
   }
 }
 
@@ -681,6 +738,123 @@ async function loadIncidentsList(pageNumber = 1, filters = currentIncidentFilter
     container.innerHTML = `<div class="error-message">Impossible de charger les incidents: ${error.message}. Assurez-vous que le backend est en cours d'exécution.</div>`;
     updatePaginationUI(); // Also update (e.g., disable buttons) on error
   }
+}
+
+function updateIocsPaginationUI() {
+    const pageInfoSpan = document.getElementById('iocs-page-info');
+    const prevPageBtn = document.getElementById('iocs-prev-page-btn');
+    const nextPageBtn = document.getElementById('iocs-next-page-btn');
+
+    if (!pageInfoSpan || !prevPageBtn || !nextPageBtn) return;
+
+    if (totalIocs === 0) {
+        pageInfoSpan.textContent = "Aucun indicateur";
+        prevPageBtn.disabled = true;
+        nextPageBtn.disabled = true;
+        return;
+    }
+
+    const totalPages = Math.ceil(totalIocs / iocsPerPage);
+    pageInfoSpan.textContent = `Page ${currentIocsPage} sur ${totalPages}`;
+    prevPageBtn.disabled = currentIocsPage <= 1;
+    nextPageBtn.disabled = currentIocsPage >= totalPages;
+}
+
+async function loadIocsList(pageNumber = 1) {
+    const container = document.getElementById('iocs-list');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-message">Chargement des indicateurs...</div>';
+    currentIocsPage = pageNumber;
+
+    const skip = (pageNumber - 1) * iocsPerPage;
+    const limit = iocsPerPage;
+
+    const queryParams = new URLSearchParams({ skip: skip, limit: limit });
+
+    try {
+        const token = getToken();
+        if (!token) {
+            showLoginView();
+            throw new Error("Session expirée. Veuillez vous reconnecter.");
+        }
+
+        const response = await fetch(`/api/v1/iocs/?${queryParams.toString()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                clearToken();
+                showLoginView();
+            }
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const iocs = data.items;
+        totalIocs = data.total;
+
+        container.innerHTML = '';
+
+        if (iocs.length === 0) {
+            container.innerHTML = '<div class="empty-message">Aucun indicateur de compromission à afficher.</div>';
+        } else {
+            iocs.forEach(ioc => {
+                const iocDiv = document.createElement('div');
+                iocDiv.className = 'ioc-row'; // Use a specific class for IoC rows
+                iocDiv.innerHTML = `
+                    <div class="col-id" style="flex-basis: 5%;">${ioc.id}</div>
+                    <div class="col-ioc-value" style="flex-basis: 40%;">${ioc.value}</div>
+                    <div class="col-ioc-type" style="flex-basis: 15%;">${ioc.type}</div>
+                    <div class="col-ioc-source" style="flex-basis: 15%;">${ioc.source || 'N/A'}</div>
+                    <div class="col-date" style="flex-basis: 15%;">${new Date(ioc.last_seen).toLocaleString()}</div>
+                    <div class="col-actions" style="flex-basis: 10%;">
+                        <div class="ioc-actions">
+                            <button class="action-btn delete-ioc-btn" data-ioc-id="${ioc.id}">Supprimer</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(iocDiv);
+            });
+        }
+        updateIocsPaginationUI();
+    } catch (error) {
+        console.error("Erreur lors du chargement des IoCs:", error);
+        container.innerHTML = `<div class="error-message">Impossible de charger les indicateurs: ${error.message}.</div>`;
+        updateIocsPaginationUI();
+    }
+}
+
+async function handleDeleteIoc(iocId) {
+    const token = getToken();
+    if (!token || !confirm(`Êtes-vous sûr de vouloir supprimer l'IoC #${iocId} ?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/iocs/${iocId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                clearToken();
+                showLoginView();
+                throw new Error("Session expirée.");
+            }
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+
+        console.log(`IoC ${iocId} supprimé.`);
+        // Refresh the list
+        await loadIocsList(currentIocsPage);
+
+    } catch (error) {
+        console.error(`Erreur lors de la suppression de l'IoC ${iocId}:`, error);
+        alert(`Erreur: ${error.message}`);
+    }
 }
 
 
@@ -820,6 +994,111 @@ async function handleNewIncidentSubmit(event) {
     console.error("Erreur lors de la création de l'incident:", error);
     modalErrorMessage.textContent = `Erreur: ${error.message}`;
     modalErrorMessage.style.display = 'block';
+  }
+}
+
+
+// --- New IoC Modal Functions ---
+function openNewIocModal() {
+  if (!newIocModal || !newIocForm) return;
+  newIocForm.reset();
+  iocModalErrorMessage.style.display = 'none';
+  iocModalErrorMessage.textContent = '';
+  newIocModal.style.display = 'block';
+  // Populate the select dropdown for IoC types
+  populateSelect(iocTypeSelect, IoCType);
+}
+
+function closeNewIocModal() {
+  if (!newIocModal) return;
+  newIocModal.style.display = 'none';
+}
+
+function initNewIocModal() {
+  if (newIocBtn) {
+    newIocBtn.addEventListener('click', openNewIocModal);
+  }
+  if (iocModalCloseBtn) {
+    iocModalCloseBtn.addEventListener('click', closeNewIocModal);
+  }
+  if (iocModalCancelBtn) {
+    iocModalCancelBtn.addEventListener('click', closeNewIocModal);
+  }
+  if (newIocModal) {
+    newIocModal.addEventListener('click', function(event) {
+      if (event.target === newIocModal) {
+        closeNewIocModal();
+      }
+    });
+  }
+  if (newIocForm) {
+    newIocForm.addEventListener('submit', handleNewIocSubmit);
+  }
+}
+
+async function handleNewIocSubmit(event) {
+  event.preventDefault();
+
+  const valueInput = document.getElementById('ioc-value');
+  const sourceInput = document.getElementById('ioc-source');
+
+  // Basic client-side validation
+  if (!valueInput.value.trim()) {
+    iocModalErrorMessage.textContent = "La valeur de l'indicateur est requise.";
+    iocModalErrorMessage.style.display = 'block';
+    return;
+  }
+  if (!iocTypeSelect.value) {
+    iocModalErrorMessage.textContent = "Veuillez sélectionner un type.";
+    iocModalErrorMessage.style.display = 'block';
+    return;
+  }
+  iocModalErrorMessage.style.display = 'none';
+
+  const iocData = {
+    value: valueInput.value.trim(),
+    type: iocTypeSelect.value,
+    source: sourceInput.value.trim() || null,
+  };
+
+  const token = getToken();
+  if (!token) {
+    iocModalErrorMessage.textContent = "Non authentifié. Veuillez vous reconnecter.";
+    iocModalErrorMessage.style.display = 'block';
+    showLoginView();
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/v1/iocs/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(iocData),
+    });
+
+    if (!response.ok) {
+       if (response.status === 401) {
+        clearToken();
+        closeNewIocModal();
+        showLoginView();
+        throw new Error("Session expirée. Création annulée.");
+      }
+      const errorData = await response.json().catch(() => ({ detail: "Erreur inconnue." }));
+      throw new Error(errorData.detail || `Erreur HTTP: ${response.status}`);
+    }
+
+    await response.json();
+    closeNewIocModal();
+    await loadIocsList(1); // Refresh the list to the first page
+    console.log("IoC créé avec succès.");
+
+  } catch (error) {
+    console.error("Erreur lors de la création de l'IoC:", error);
+    iocModalErrorMessage.textContent = `Erreur: ${error.message}`;
+    iocModalErrorMessage.style.display = 'block';
   }
 }
 
@@ -1139,7 +1418,7 @@ function loadPageData(pageName) {
       loadIncidentsList();
       break;
     case 'threats':
-      loadThreatsData();
+      loadIocsList(); // Replaced loadThreatsData with loadIocsList
       break;
     case 'monitoring':
       loadMonitoringData();
@@ -1239,69 +1518,8 @@ async function loadIncidentsList(pageNumber = 1, filters = currentIncidentFilter
 }
 
 function loadThreatsData() {
-  // Graphique des types de menaces
-  setTimeout(() => {
-    createThreatTypesChart();
-  }, 100);
-  
-  // Flux de menaces
-  loadThreatFeed();
-  
-  // Indicateurs de compromission
-  loadIOCList();
-}
-
-function loadThreatFeed() {
-  const container = document.getElementById('threat-feed');
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  mockData.threats.forEach(threat => {
-    const threatDiv = document.createElement('div');
-    threatDiv.className = 'threat-item';
-    
-    const trendIcon = threat.trend === 'up' ? 'trending-up' : 
-                     threat.trend === 'down' ? 'trending-down' : 'minus';
-    const trendClass = `trend-${threat.trend}`;
-    
-    threatDiv.innerHTML = `
-      <div class="threat-type">${threat.type}</div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span class="threat-count">${threat.count}</span>
-        <i data-lucide="${trendIcon}" class="trend-indicator ${trendClass}"></i>
-      </div>
-    `;
-    
-    container.appendChild(threatDiv);
-  });
-  
-  // Re-initialiser les icônes Lucide
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-}
-
-function loadIOCList() {
-  const container = document.getElementById('ioc-list');
-  if (!container) return;
-  
-  container.innerHTML = '';
-  
-  mockData.iocList.forEach(ioc => {
-    const iocDiv = document.createElement('div');
-    iocDiv.className = 'threat-item';
-    
-    iocDiv.innerHTML = `
-      <div>
-        <div class="threat-type">${ioc.type}: ${ioc.value}</div>
-        <div style="font-size: 12px; color: var(--color-text-secondary);">${ioc.threat}</div>
-      </div>
-      <div class="threat-count">${ioc.confidence}</div>
-    `;
-    
-    container.appendChild(iocDiv);
-  });
+  // This function is now obsolete as the page is managed by loadIocsList.
+  // The related chart (threatTypesChart) is also removed.
 }
 
 function loadMonitoringData() {
